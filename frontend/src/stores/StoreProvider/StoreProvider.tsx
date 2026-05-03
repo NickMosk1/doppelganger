@@ -1,23 +1,29 @@
 "use client";
 
 import { createContext, ReactNode, FC, useEffect, useState } from "react";
+import { AUTH_STORE, CATALOG_STORE, EDITOR_STORE, SCHEMA_STORE, USER_STORE } from "../identifiers";
+import Injector from "../../utils/injector";
 import RootStore from "../root.store";
 import AuthStore from "../auth.store";
 import UserStore from "../user.store";
-import { AUTH_STORE, USER_STORE } from "../identifiers";
-import Injector from "../../utils/injector";
+import EditorStore from "../editor.store";
+import CatalogStore from "../catalog.store";
+import SchemaStore from "../schema.store";
 
 interface StoreContextValue {
   rootStore: RootStore;
   authStore: AuthStore;
   userStore: UserStore;
-}
+  editorStore: EditorStore;
+  catalogStore: CatalogStore;
+  schemaStore: SchemaStore;
+};
 
 export const StoreContext = createContext<StoreContextValue | undefined>(undefined);
 
 interface StoreProviderProps {
   children: ReactNode;
-}
+};
 
 const StoreProvider: FC<StoreProviderProps> = ({ children }) => {
   const [rootStore, setRootStore] = useState<StoreContextValue | undefined>();
@@ -29,6 +35,9 @@ const StoreProvider: FC<StoreProviderProps> = ({ children }) => {
         rootStore: rootStr,
         authStore: rootStr.authStore,
         userStore: rootStr.userStore,
+        editorStore: rootStr.editorStore,
+        catalogStore: rootStr.catalogStore,
+        schemaStore: rootStr.schemaStore,
       });
     }
   }, []);
@@ -36,6 +45,9 @@ const StoreProvider: FC<StoreProviderProps> = ({ children }) => {
   if (rootStore) {
     Injector.register(AUTH_STORE, rootStore.authStore);
     Injector.register(USER_STORE, rootStore.userStore);
+    Injector.register(EDITOR_STORE, rootStore.editorStore);
+    Injector.register(CATALOG_STORE, rootStore.catalogStore);
+    Injector.register(SCHEMA_STORE, rootStore.schemaStore);
 
     return (
       <StoreContext.Provider value={{ ...rootStore }}>

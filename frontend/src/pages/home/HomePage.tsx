@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { observer } from "mobx-react-lite";
 import { useNavigate } from "react-router-dom";
-import { useStores } from "../../hooks/useStores";
-import { SchemaService } from "../../services/schema.service";
 import {
   HomeContainer,
   WelcomeSection,
@@ -24,10 +22,12 @@ import {
   LoadingState,
 } from "./HomePage.styles";
 import { Button } from "../../shared";
+import SchemaService from "../../services/schema.service";
+import { useStores } from "../../hooks";
 
 const schemaService = new SchemaService();
 
-const HomePage: React.FC = observer(() => {
+export const HomePage: React.FC = observer(() => {
   const navigate = useNavigate();
   const { userStore, schemaStore } = useStores();
   const [loading, setLoading] = useState(true);
@@ -35,11 +35,13 @@ const HomePage: React.FC = observer(() => {
   useEffect(() => {
     const fetchSchemas = async () => {
       try {
+        schemaStore.setLoading(true);
         const schemas = await schemaService.getAllSchemas();
         schemaStore.setSchemas(schemas);
       } catch (error) {
         console.error("Failed to fetch schemas:", error);
       } finally {
+        schemaStore.setLoading(false);
         setLoading(false);
       }
     };
@@ -49,7 +51,7 @@ const HomePage: React.FC = observer(() => {
 
   const handleCreateSchema = async () => {
     try {
-      const newSchema = await schemaService.createSchema("Новая схема", "");
+      const newSchema = await schemaService.createSchema("Новая схема", "", false);
       schemaStore.addSchema(newSchema);
       navigate(`/editor/${newSchema.id}`);
     } catch (error) {
@@ -68,7 +70,7 @@ const HomePage: React.FC = observer(() => {
     }
   };
 
-  if (loading) {
+  if (loading || schemaStore.isLoading) {
     return <LoadingState>Загрузка ваших схем...</LoadingState>;
   }
 
@@ -84,7 +86,7 @@ const HomePage: React.FC = observer(() => {
 
       <StatsGrid>
         <StatCard>
-          <StatValue>{schemaStore.schemas.length}</StatValue>
+          <StatValue>{schemaStore.totalSchemas}</StatValue>
           <StatLabel>Всего схем</StatLabel>
         </StatCard>
         <StatCard>

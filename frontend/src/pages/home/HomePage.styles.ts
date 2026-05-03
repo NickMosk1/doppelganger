@@ -186,3 +186,12 @@ export const EmptyState = styled.div`
     margin-bottom: 20px;
   }
 `;
+
+export const LoadingState = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  font-size: 16px;
+  color: ${colors.textLight};
+`;
