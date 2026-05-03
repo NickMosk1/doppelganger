@@ -1,4 +1,3 @@
-// src/pages/home/HomePage.styles.ts
 import styled from 'styled-components';
 import { colors } from '../../shared/theme/colors';
 
@@ -28,11 +27,11 @@ export const Logo = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-  
+
   span {
     font-size: 24px;
   }
-  
+
   h1 {
     font-size: 20px;
     color: ${colors.primary};
@@ -44,7 +43,7 @@ export const UserInfo = styled.div`
   display: flex;
   align-items: center;
   gap: 16px;
-  
+
   span {
     color: ${colors.textLight};
     font-size: 14px;
@@ -91,7 +90,7 @@ export const StatCard = styled.div`
   text-align: center;
   box-shadow: 0 2px 8px ${colors.shadow};
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  
+
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 16px ${colors.shadow};
@@ -117,7 +116,7 @@ export const SectionHeader = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
-  
+
   h2 {
     font-size: 24px;
     color: ${colors.text};
@@ -138,12 +137,12 @@ export const SchemaCard = styled.div`
   padding: 20px;
   box-shadow: 0 2px 8px ${colors.shadow};
   transition: all 0.2s ease;
-  
+
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 16px ${colors.shadow};
   }
-  
+
   p {
     color: ${colors.textLight};
     font-size: 14px;
@@ -181,7 +180,7 @@ export const EmptyState = styled.div`
   padding: 60px;
   background: ${colors.white};
   border-radius: 16px;
-  
+
   p {
     color: ${colors.textLight};
     margin-bottom: 20px;

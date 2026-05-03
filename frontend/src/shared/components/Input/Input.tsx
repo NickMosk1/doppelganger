@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { StyledInput, InputWrapper, Label, ErrorMessage } from './Input.styles';
 
-export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
   fullWidth?: boolean;
 }
 
-export const Input: React.FC<InputProps> = ({
+const Input: React.FC<InputProps> = ({
   label,
   error,
   fullWidth = false,
@@ -46,3 +46,5 @@ export const Input: React.FC<InputProps> = ({
     </InputWrapper>
   );
 };
+
+export default Input;

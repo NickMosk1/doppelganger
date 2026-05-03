@@ -1,8 +1,9 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
-import { AUTH_STORE } from '../stores/AuthStore';
 import Injector from './injector';
+import { AuthStore } from '../stores';
+import { AUTH_STORE } from '../stores/identifiers';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+const API_BASE_URL = 'http://localhost:8080/api';
 
 class ApiClient {
   private client: AxiosInstance;
@@ -27,7 +28,7 @@ class ApiClient {
       (response) => response,
       (error) => {
         if (error.response?.status === 401) {
-          const authStore = Injector.get(AUTH_STORE);
+          const authStore = Injector.get<AuthStore>(AUTH_STORE);
           authStore.logout();
           window.location.href = '/login';
         }

@@ -1,12 +1,10 @@
-import { useState, useEffect } from 'react';
-import { Button } from '../../shared/components/Button/Button';
+import { useEffect, useState } from "react";
+import { observer } from "mobx-react-lite";
+import { useNavigate } from "react-router-dom";
+import { useStores } from "../../hooks/useStores";
+import { SchemaService } from "../../services/schema.service";
 import {
   HomeContainer,
-  Header,
-  HeaderContent,
-  Logo,
-  UserInfo,
-  MainContent,
   WelcomeSection,
   WelcomeTitle,
   WelcomeDescription,
@@ -23,158 +21,128 @@ import {
   SchemaCardDate,
   SchemaCardActions,
   EmptyState,
-  CreateButtonWrapper,
-} from './HomePage.styles';
+  LoadingState,
+} from "./HomePage.styles";
+import { Button } from "../../shared";
 
-interface Schema {
-  id: string;
-  name: string;
-  description: string;
-  createdAt: string;
-  nodesCount?: number;
-}
+const schemaService = new SchemaService();
 
-export const HomePage: React.FC = () => {
-  const [schemas, setSchemas] = useState<Schema[]>([]);
+const HomePage: React.FC = observer(() => {
+  const navigate = useNavigate();
+  const { userStore, schemaStore } = useStores();
   const [loading, setLoading] = useState(true);
 
-  const fetchSchemas = async () => {
-    try {
-      // TODO: API call
-      // const response = await api.get('/schemas');
-      // setSchemas(response.data);
-      
-      // Mock data
-      setSchemas([
-        {
-          id: '1',
-          name: 'Цех №3',
-          description: 'Основная производственная линия',
-          createdAt: '2024-01-15T10:30:00',
-        },
-        {
-          id: '2',
-          name: 'Горячий цех',
-          description: 'Высокотемпературный участок',
-          createdAt: '2024-02-20T14:45:00',
-        },
-      ]);
-    } catch (error) {
-      console.error('Error fetching schemas:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreateSchema = () => {
-    // TODO: Navigate to schema editor
-    window.location.href = '/editor/new';
-  };
-
-  const handleEditSchema = (id: string) => {
-    window.location.href = `/editor/${id}`;
-  };
-
-  const handleDeleteSchema = async (id: string) => {
-    if (confirm('Удалить схему?')) {
-      // TODO: API call
-      setSchemas(schemas.filter(s => s.id !== id));
-    }
-  };
-
   useEffect(() => {
+    const fetchSchemas = async () => {
+      try {
+        const schemas = await schemaService.getAllSchemas();
+        schemaStore.setSchemas(schemas);
+      } catch (error) {
+        console.error("Failed to fetch schemas:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchSchemas();
   }, []);
 
+  const handleCreateSchema = async () => {
+    try {
+      const newSchema = await schemaService.createSchema("Новая схема", "");
+      schemaStore.addSchema(newSchema);
+      navigate(`/editor/${newSchema.id}`);
+    } catch (error) {
+      console.error("Failed to create schema:", error);
+    }
+  };
+
+  const handleDeleteSchema = async (id: string) => {
+    if (window.confirm("Удалить схему? Это действие нельзя отменить.")) {
+      try {
+        await schemaService.deleteSchema(id);
+        schemaStore.removeSchema(id);
+      } catch (error) {
+        console.error("Failed to delete schema:", error);
+      }
+    }
+  };
+
+  if (loading) {
+    return <LoadingState>Загрузка ваших схем...</LoadingState>;
+  }
+
   return (
     <HomeContainer>
-      <Header>
-        <HeaderContent>
-          <Logo>
-            <span>🔄</span>
-            <h1>Doppelganger</h1>
-          </Logo>
-          <UserInfo>
-            <span>👤 Администратор</span>
-            <Button variant="text" size="small">Выйти</Button>
-          </UserInfo>
-        </HeaderContent>
-      </Header>
+      <WelcomeSection>
+        <WelcomeTitle>Добро пожаловать, {userStore.userFullName}!</WelcomeTitle>
+        <WelcomeDescription>
+          Создавайте и управляйте цифровыми двойниками ваших промышленных сетей.
+          Моделируйте влияние температуры, ЭМИ и вибрации на производительность.
+        </WelcomeDescription>
+      </WelcomeSection>
 
-      <MainContent>
-        <WelcomeSection>
-          <WelcomeTitle>Добро пожаловать!</WelcomeTitle>
-          <WelcomeDescription>
-            Создавайте и управляйте цифровыми двойниками ваших промышленных сетей.
-            Моделируйте влияние температуры, ЭМИ и вибрации на производительность.
-          </WelcomeDescription>
-        </WelcomeSection>
+      <StatsGrid>
+        <StatCard>
+          <StatValue>{schemaStore.schemas.length}</StatValue>
+          <StatLabel>Всего схем</StatLabel>
+        </StatCard>
+        <StatCard>
+          <StatValue>{schemaStore.publicSchemasCount}</StatValue>
+          <StatLabel>Публичных схем</StatLabel>
+        </StatCard>
+        <StatCard>
+          <StatValue>{userStore.user?.role === "ADMIN" ? "👑" : "🔧"}</StatValue>
+          <StatLabel>{userStore.user?.role === "ADMIN" ? "Администратор" : "Инженер"}</StatLabel>
+        </StatCard>
+      </StatsGrid>
 
-        <StatsGrid>
-          <StatCard>
-            <StatValue>{schemas.length}</StatValue>
-            <StatLabel>Всего схем</StatLabel>
-          </StatCard>
-          <StatCard>
-            <StatValue>24</StatValue>
-            <StatLabel>Устройств</StatLabel>
-          </StatCard>
-          <StatCard>
-            <StatValue>3</StatValue>
-            <StatLabel>Активных симуляций</StatLabel>
-          </StatCard>
-        </StatsGrid>
+      <SchemasSection>
+        <SectionHeader>
+          <h2>Мои схемы</h2>
+          <Button onClick={handleCreateSchema}>+ Новая схема</Button>
+        </SectionHeader>
 
-        <SchemasSection>
-          <SectionHeader>
-            <h2>Мои схемы</h2>
-            <CreateButtonWrapper>
-              <Button onClick={handleCreateSchema}>
-                + Новая схема
-              </Button>
-            </CreateButtonWrapper>
-          </SectionHeader>
-
-          {loading ? (
-            <div>Загрузка...</div>
-          ) : schemas.length === 0 ? (
-            <EmptyState>
-              <p>У вас пока нет схем</p>
-              <Button onClick={handleCreateSchema}>Создать первую схему</Button>
-            </EmptyState>
-          ) : (
-            <SchemasGrid>
-              {schemas.map((schema) => (
-                <SchemaCard key={schema.id}>
-                  <SchemaCardHeader>
-                    <SchemaCardTitle>{schema.name}</SchemaCardTitle>
-                    <SchemaCardDate>
-                      {new Date(schema.createdAt).toLocaleDateString('ru-RU')}
-                    </SchemaCardDate>
-                  </SchemaCardHeader>
-                  <p>{schema.description}</p>
-                  <SchemaCardActions>
-                    <Button
-                      variant="outline"
-                      size="small"
-                      onClick={() => handleEditSchema(schema.id)}
-                    >
-                      Редактировать
-                    </Button>
-                    <Button
-                      variant="text"
-                      size="small"
-                      onClick={() => handleDeleteSchema(schema.id)}
-                    >
-                      Удалить
-                    </Button>
-                  </SchemaCardActions>
-                </SchemaCard>
-              ))}
-            </SchemasGrid>
-          )}
-        </SchemasSection>
-      </MainContent>
+        {schemaStore.schemas.length === 0 ? (
+          <EmptyState>
+            <p>У вас пока нет схем</p>
+            <Button onClick={handleCreateSchema}>Создать первую схему</Button>
+          </EmptyState>
+        ) : (
+          <SchemasGrid>
+            {schemaStore.schemas.map((schema) => (
+              <SchemaCard key={schema.id}>
+                <SchemaCardHeader>
+                  <SchemaCardTitle>{schema.name}</SchemaCardTitle>
+                  <SchemaCardDate>
+                    {new Date(schema.createdAt).toLocaleDateString("ru-RU")}
+                  </SchemaCardDate>
+                </SchemaCardHeader>
+                <p>{schema.description || "Нет описания"}</p>
+                {schema.isPublic && <span>🌍 Публичная</span>}
+                <SchemaCardActions>
+                  <Button
+                    variant="outline"
+                    size="small"
+                    onClick={() => navigate(`/editor/${schema.id}`)}
+                  >
+                    Редактировать
+                  </Button>
+                  <Button
+                    variant="text"
+                    size="small"
+                    onClick={() => handleDeleteSchema(schema.id)}
+                  >
+                    Удалить
+                  </Button>
+                </SchemaCardActions>
+              </SchemaCard>
+            ))}
+          </SchemasGrid>
+        )}
+      </SchemasSection>
     </HomeContainer>
   );
-};
+});
+
+export default HomePage;

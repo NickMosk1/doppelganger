@@ -1,26 +1,43 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { LoginPage } from './pages/login/LoginPage';
-import { HomePage } from './pages/home/HomePage';
-import { GlobalStyles } from './shared/theme/globalStyles';
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { observer } from "mobx-react-lite";
+import { HomePage, LoginPage } from "./pages";
+import StoreProvider from "./stores/StoreProvider";
+import { useStores } from "./hooks/useStores";
+import { AppLayout, GlobalStyles } from "./shared";
 
-function App() {
-  const isAuthenticated = true; // TODO: implement auth
+const AppContent = observer(() => {
+  const { userStore, authStore } = useStores();
+  const isAuthenticated = userStore.isAuthenticated;
 
+  const handleLogout = () => {
+    authStore.logout();
+  };
+
+  return (
+    <AppLayout onLogout={handleLogout}>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/home"
+          element={isAuthenticated ? <HomePage /> : <Navigate to="/login" />}
+        />
+        <Route path="/" element={<Navigate to="/home" />} />
+      </Routes>
+    </AppLayout>
+  );
+});
+
+const App = () => {
   return (
     <>
       <GlobalStyles />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route
-            path="/home"
-            element={isAuthenticated ? <HomePage /> : <Navigate to="/login" />}
-          />
-          <Route path="/" element={<Navigate to="/home" />} />
-        </Routes>
-      </BrowserRouter>
+      <StoreProvider>
+        <BrowserRouter>
+          <AppContent />
+        </BrowserRouter>
+      </StoreProvider>
     </>
   );
-}
+};
 
 export default App;

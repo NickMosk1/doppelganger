@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { Button } from '../../shared/components/Button/Button';
-import { Input } from '../../shared/components/Input/Input';
+import { useState } from "react";
+import { observer } from "mobx-react-lite";
+import { useNavigate } from "react-router-dom";
+import { useStores } from "../../hooks/useStores";
 import {
   LoginContainer,
   LoginCard,
@@ -9,32 +10,56 @@ import {
   LoginForm,
   FormGroup,
   Divider,
-  DemoCredentials,
   Logo,
-} from './LoginPage.styles';
+} from "./LoginPage.styles";
+import AuthService from "../../services/auth.service";
+import { Button, Input } from "../../shared";
 
-export const LoginPage: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+const authService = new AuthService();
+
+const LoginPage: React.FC = observer(() => {
+  const navigate = useNavigate();
+  const { authStore } = useStores();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isRegister, setIsRegister] = useState(false);
+  const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
-    // TODO: API call to backend
-    console.log('Login:', { email, password });
-    
-    setTimeout(() => {
+    setError("");
+
+    try {
+      let response;
+      if (isRegister) {
+        response = await authService.register(email, password, fullName);
+      } else {
+        response = await authService.login(email, password);
+      }
+
+      // Сохраняем данные в store
+      authStore.setAuthenticated(response.token, {
+        id: response.userId,
+        email: response.email,
+        fullName: response.fullName,
+        role: response.role,
+      });
+
+      navigate("/home");
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message || "Ошибка");
+    } finally {
       setLoading(false);
-      // Redirect to home
-      window.location.href = '/home';
-    }, 1000);
+    }
   };
 
-  const handleDemoLogin = () => {
-    setEmail('demo@doppelganger.com');
-    setPassword('demo123');
+  const toggleMode = () => {
+    setIsRegister(!isRegister);
+    setError("");
   };
 
   return (
@@ -44,12 +69,30 @@ export const LoginPage: React.FC = () => {
           <span>🔄</span>
           <h1>Doppelganger</h1>
         </Logo>
-        <LoginTitle>Добро пожаловать!</LoginTitle>
+        <LoginTitle>{isRegister ? "Регистрация" : "Добро пожаловать!"}</LoginTitle>
         <LoginSubtitle>
-          Войдите в систему управления цифровыми двойниками
+          {isRegister
+            ? "Создайте аккаунт для работы с цифровыми двойниками"
+            : "Войдите в систему управления цифровыми двойниками"}
         </LoginSubtitle>
 
+        {error && <span>{error}</span>}
+
         <LoginForm onSubmit={handleSubmit}>
+          {isRegister && (
+            <FormGroup>
+              <Input
+                type="text"
+                label="Полное имя"
+                placeholder="Иван Иванов"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                fullWidth
+              />
+            </FormGroup>
+          )}
+
           <FormGroup>
             <Input
               type="email"
@@ -75,19 +118,18 @@ export const LoginPage: React.FC = () => {
           </FormGroup>
 
           <Button type="submit" fullWidth loading={loading}>
-            Войти
+            {isRegister ? "Зарегистрироваться" : "Войти"}
           </Button>
         </LoginForm>
 
-        <Divider>или</Divider>
+        <Divider>{isRegister ? "уже есть аккаунт?" : "или"}</Divider>
 
-        <DemoCredentials>
-          <Button variant="outline" fullWidth onClick={handleDemoLogin}>
-            🎮 Демо-доступ
-          </Button>
-          <p>Email: demo@doppelganger.com<br />Пароль: demo123</p>
-        </DemoCredentials>
+        <Button variant="outline" fullWidth onClick={toggleMode}>
+          {isRegister ? "Войти в существующий аккаунт" : "Создать новый аккаунт"}
+        </Button>
       </LoginCard>
     </LoginContainer>
   );
-};
+});
+
+export default LoginPage;

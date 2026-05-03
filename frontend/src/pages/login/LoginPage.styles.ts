@@ -17,7 +17,7 @@ export const LoginCard = styled.div`
   max-width: 450px;
   box-shadow: 0 20px 40px ${colors.shadow};
   transition: transform 0.2s ease;
-  
+
   &:hover {
     transform: translateY(-4px);
   }
@@ -29,11 +29,11 @@ export const Logo = styled.div`
   justify-content: center;
   gap: 8px;
   margin-bottom: 32px;
-  
+
   span {
     font-size: 32px;
   }
-  
+
   h1 {
     font-size: 24px;
     color: ${colors.primary};
@@ -74,18 +74,18 @@ export const Divider = styled.div`
   color: ${colors.textLighter};
   font-size: 12px;
   margin: 24px 0;
-  
+
   &::before,
   &::after {
     content: '';
     flex: 1;
     border-bottom: 1px solid ${colors.border};
   }
-  
+
   &::before {
     margin-right: 16px;
   }
-  
+
   &::after {
     margin-left: 16px;
   }
@@ -93,7 +93,7 @@ export const Divider = styled.div`
 
 export const DemoCredentials = styled.div`
   text-align: center;
-  
+
   p {
     font-size: 12px;
     color: ${colors.textLighter};
