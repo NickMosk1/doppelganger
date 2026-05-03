@@ -10,7 +10,7 @@ interface StyledButtonProps {
 
 const sizeStyles = {
   small: css`
-    padding: 6px 16px;
+    padding: 6px;
     font-size: 12px;
   `,
   medium: css`

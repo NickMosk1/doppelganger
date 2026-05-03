@@ -1,6 +1,5 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import ReactFlow, {
-  Background,
   Controls,
   MiniMap,
   Panel,
@@ -10,26 +9,37 @@ import ReactFlow, {
   Connection,
   Edge,
   Node,
-  NodeChange,
   NodeTypes,
   OnNodesChange,
   OnEdgesChange,
+  NodeChange,
+  EdgeChange,
+  ReactFlowProvider,
+  Background,
+  BackgroundVariant,
+  useViewport,
+  useReactFlow,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { observer } from "mobx-react-lite";
 import { useStores } from "../../../hooks/useStores";
 import { DeviceNode, SubSchemaNode } from "./nodes";
 import { CanvasContainer, CanvasWrapper } from "./NetworkCanvas.styles";
+import AxesWithGrid from "./AxesWithGrid";
 
 const nodeTypes: NodeTypes = {
   device: DeviceNode,
   subschema: SubSchemaNode,
 };
 
-export const NetworkCanvas: React.FC<{ schemaId: string }> = observer(({ schemaId }) => {
-  const { editorStore } = useStores();
+interface NetworkCanvasProps {
+  schemaId: string;
+}
 
-  // Конвертируем EditorNode в ReactFlow Node
+const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
+  const { editorStore } = useStores();
+  const { setViewport } = useReactFlow();
+
   const initialNodes: Node[] = editorStore.nodes.map(node => ({
     id: node.id,
     type: node.type,
@@ -42,7 +52,6 @@ export const NetworkCanvas: React.FC<{ schemaId: string }> = observer(({ schemaI
     },
   }));
 
-  // Конвертируем EditorEdge в ReactFlow Edge
   const initialEdges: Edge[] = editorStore.edges.map(edge => ({
     id: edge.id,
     source: edge.source,
@@ -54,10 +63,8 @@ export const NetworkCanvas: React.FC<{ schemaId: string }> = observer(({ schemaI
   const [nodes, _, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  // Синхронизация между ReactFlow и Store
   const onNodesChangeHandler: OnNodesChange = useCallback((changes: NodeChange[]) => {
     onNodesChange(changes);
-    // Обновляем позиции в store
     changes.forEach((change) => {
       if (change.type === "position" && "position" in change && change.position) {
         editorStore.updateNodePosition(change.id, { x: change.position.x, y: change.position.y });
@@ -65,7 +72,7 @@ export const NetworkCanvas: React.FC<{ schemaId: string }> = observer(({ schemaI
     });
   }, [editorStore, onNodesChange]);
 
-  const onEdgesChangeHandler: OnEdgesChange = useCallback((changes) => {
+  const onEdgesChangeHandler: OnEdgesChange = useCallback((changes: EdgeChange[]) => {
     onEdgesChange(changes);
   }, [onEdgesChange]);
 
@@ -91,6 +98,12 @@ export const NetworkCanvas: React.FC<{ schemaId: string }> = observer(({ schemaI
     editorStore.clearSelection();
   }, [editorStore]);
 
+  useEffect(() => {
+    setTimeout(() => {
+      setViewport({ x: 0, y: 0, zoom: 1 });
+    }, 100);
+  }, []);
+
   return (
     <CanvasContainer>
       <CanvasWrapper>
@@ -105,14 +118,47 @@ export const NetworkCanvas: React.FC<{ schemaId: string }> = observer(({ schemaI
           onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
           fitView
+          fitViewOptions={{ padding: 0.2, includeHiddenNodes: true }}
           snapToGrid
           snapGrid={[16, 16]}
+          defaultViewport={{ x: 0, y: 0, zoom: 1 }}
         >
-          <Background color="#e5e5e5" gap={16} />
+          {/* Сетка из точек как фон */}
+          <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#cbd5e1" />
+
+          {/* Оси и динамическая сетка */}
+          <AxesWithGrid
+            baseGridSize={50}
+            axisOpacity={0.8}
+            gridOpacity={0.4}
+            minStepPx={15}
+            maxStepPx={150}
+          />
+
           <Controls />
           <MiniMap />
+
+          <Panel position="top-left">
+            <div style={{ 
+              background: "white", 
+              padding: "4px 12px", 
+              borderRadius: "6px", 
+              fontSize: "12px",
+              border: "1px solid #e2e8f0",
+              boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+            }}>
+              🎯 Сетка | 📐 Zoom: {(useViewport().zoom * 100).toFixed(0)}%
+            </div>
+          </Panel>
+
           <Panel position="top-right">
-            <div style={{ background: "white", padding: "8px 16px", borderRadius: "8px", fontSize: "12px", boxShadow: "0 2px 4px rgba(0,0,0,0.1)" }}>
+            <div style={{ 
+              background: "white", 
+              padding: "4px 12px", 
+              borderRadius: "6px", 
+              fontSize: "12px",
+              border: "1px solid #e2e8f0",
+            }}>
               📊 Устройств: {nodes.length} | 🔗 Связей: {edges.length}
             </div>
           </Panel>
@@ -121,5 +167,13 @@ export const NetworkCanvas: React.FC<{ schemaId: string }> = observer(({ schemaI
     </CanvasContainer>
   );
 });
+
+export const NetworkCanvas: React.FC<NetworkCanvasProps> = (props) => {
+  return (
+    <ReactFlowProvider>
+      <CanvasContent {...props} />
+    </ReactFlowProvider>
+  );
+};
 
 export default NetworkCanvas;

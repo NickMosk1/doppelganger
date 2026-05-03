@@ -51,4 +51,12 @@ export const GlobalStyles = createGlobalStyle`
   ::-webkit-scrollbar-thumb:hover {
     background: ${colors.primary};
   }
+
+  .react-flow__background {
+    background-color: #f8fafc;
+  }
+
+  .react-flow__attribution {
+    display: none;
+  }
 `;

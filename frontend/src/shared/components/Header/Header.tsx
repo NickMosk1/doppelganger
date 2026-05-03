@@ -46,14 +46,12 @@ const Header: React.FC<HeaderProps> = observer(({ onLogout }) => {
     <HeaderContainer>
       <HeaderContent>
         <Logo onClick={() => navigate("/home")}>
-          <span>🔄</span>
           <h1>Doppelganger</h1>
         </Logo>
 
         <NavLinks>
           <NavLink to="/home">Главная</NavLink>
           <NavLink to="/schemas">Схемы</NavLink>
-          <NavLink to="/marketplace">Маркетплейс</NavLink>
         </NavLinks>
 
         <UserInfo>

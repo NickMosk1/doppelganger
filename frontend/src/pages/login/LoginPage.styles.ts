@@ -17,10 +17,6 @@ export const LoginCard = styled.div`
   max-width: 450px;
   box-shadow: 0 20px 40px ${colors.shadow};
   transition: transform 0.2s ease;
-
-  &:hover {
-    transform: translateY(-4px);
-  }
 `;
 
 export const Logo = styled.div`

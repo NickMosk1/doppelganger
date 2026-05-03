@@ -5,7 +5,6 @@ import { useStores } from "../../hooks/useStores";
 import {
   LoginContainer,
   LoginCard,
-  LoginTitle,
   LoginSubtitle,
   LoginForm,
   FormGroup,
@@ -66,10 +65,8 @@ const LoginPage: React.FC = observer(() => {
     <LoginContainer>
       <LoginCard>
         <Logo>
-          <span>🔄</span>
           <h1>Doppelganger</h1>
         </Logo>
-        <LoginTitle>{isRegister ? "Регистрация" : "Добро пожаловать!"}</LoginTitle>
         <LoginSubtitle>
           {isRegister
             ? "Создайте аккаунт для работы с цифровыми двойниками"

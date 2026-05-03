@@ -4,7 +4,7 @@ import { colors } from '../../shared/theme/colors';
 export const EditorContainer = styled.div`
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: calc(100vh - 112px);
   background: ${colors.background};
   overflow: hidden;
 `;
@@ -13,7 +13,7 @@ export const HeaderActions = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 24px;
+  padding: 12px 24px 12px 11px;
   background: ${colors.white};
   border-bottom: 1px solid ${colors.border};
   flex-shrink: 0;
@@ -28,6 +28,7 @@ export const SchemaName = styled.div`
     border-radius: 8px;
     width: 300px;
     transition: all 0.2s ease;
+    text-align: center;
 
     &:focus {
       outline: none;

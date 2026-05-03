@@ -20,7 +20,7 @@ interface MainContentProps {
 
 export const MainContent = styled.main<MainContentProps>`
   flex: 1;
-  padding: 24px 32px;
+  padding: 20px;
   margin-left: ${props => props.$hasSidebar ? "260px" : "0"};
   transition: margin-left 0.3s ease;
 

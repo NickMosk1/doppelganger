@@ -121,7 +121,7 @@ const SchemaEditorPage: React.FC = observer(() => {
           <Button variant="outline" onClick={handleShowHistory}>
             📊 История
           </Button>
-          <Button onClick={handleSave}>💾 Сохранить</Button>
+          <Button onClick={handleSave}>Сохранить</Button>
         </ActionButtons>
       </HeaderActions>
 

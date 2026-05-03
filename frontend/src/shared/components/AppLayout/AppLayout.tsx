@@ -56,10 +56,6 @@ const AppLayout: React.FC<AppLayoutProps> = observer(({
               <SidebarIcon>⚡</SidebarIcon>
               <SidebarLabel>Симуляции</SidebarLabel>
             </SidebarItem>
-            <SidebarItem to="/marketplace">
-              <SidebarIcon>🏪</SidebarIcon>
-              <SidebarLabel>Маркетплейс</SidebarLabel>
-            </SidebarItem>
           </Sidebar>
         )}
 
