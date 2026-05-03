@@ -55,4 +55,18 @@ public class GlobalExceptionHandler {
         
         return new ResponseEntity<>(body, HttpStatus.INTERNAL_SERVER_ERROR);
     }
+
+    @ExceptionHandler(SecurityException.class)
+    public ResponseEntity<Map<String, Object>> handleSecurity(SecurityException ex, WebRequest request) {
+        log.error("Security error: {}", ex.getMessage());
+        
+        Map<String, Object> body = new HashMap<>();
+        body.put("timestamp", LocalDateTime.now());
+        body.put("status", HttpStatus.FORBIDDEN.value());
+        body.put("error", "Forbidden");
+        body.put("message", ex.getMessage());
+        body.put("path", request.getDescription(false).replace("uri=", ""));
+        
+        return new ResponseEntity<>(body, HttpStatus.FORBIDDEN);
+    }
 }

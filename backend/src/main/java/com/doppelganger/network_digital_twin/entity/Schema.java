@@ -1,21 +1,53 @@
 package com.doppelganger.network_digital_twin.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "schemas")
+@Table(name = "schemas", indexes = {
+    @Index(name = "idx_schema_user", columnList = "user_id"),
+    @Index(name = "idx_schema_parent", columnList = "parent_schema_id"),
+    @Index(name = "idx_schema_public", columnList = "is_public")
+})
 public class Schema {
     
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
     
+    @Column(nullable = false)
     private String name;
+    
+    @Column(length = 500)
     private String description;
+    
+    // Владелец схемы (обязательно)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+    
+    // Публичная ли схема (можно использовать другим пользователям)
+    private Boolean isPublic = false;
+    
+    // Количество использований в чужих схемах
+    private Integer usageCount = 0;
+    
+    // Родительская схема (может принадлежать другому пользователю)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_schema_id")
+    private Schema parentSchema;
+    
+    @OneToMany(mappedBy = "parentSchema", cascade = CascadeType.ALL)
+    private List<Schema> childrenSchemas = new ArrayList<>();
+    
+    @OneToMany(mappedBy = "schema", cascade = CascadeType.ALL)
+    private List<SchemaNode> nodes = new ArrayList<>();
+    
+    @OneToMany(mappedBy = "schema", cascade = CascadeType.ALL)
+    private List<Connection> connections = new ArrayList<>();
+    
     private String path;
     private Integer depth = 0;
     
@@ -27,28 +59,14 @@ public class Schema {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "parent_schema_id")
-    @JsonIgnore  // Игнорируем родителя при сериализации
-    private Schema parentSchema;
-    
-    @OneToMany(mappedBy = "parentSchema", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Schema> childrenSchemas = new ArrayList<>();
-    
-    @OneToMany(mappedBy = "schema", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @JsonIgnore
-    private List<SchemaNode> nodes = new ArrayList<>();
-    
-    @OneToMany(mappedBy = "schema", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @JsonIgnore
-    private List<Connection> connections = new ArrayList<>();
-    
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
         if (depth == null) depth = 0;
         if (path == null && name != null) path = "/" + name;
+        if (isPublic == null) isPublic = false;
+        if (usageCount == null) usageCount = 0;
     }
     
     @PreUpdate
@@ -65,6 +83,27 @@ public class Schema {
     
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+    
+    public User getUser() { return user; }
+    public void setUser(User user) { this.user = user; }
+    
+    public Boolean getIsPublic() { return isPublic; }
+    public void setIsPublic(Boolean isPublic) { this.isPublic = isPublic; }
+    
+    public Integer getUsageCount() { return usageCount; }
+    public void setUsageCount(Integer usageCount) { this.usageCount = usageCount; }
+    
+    public Schema getParentSchema() { return parentSchema; }
+    public void setParentSchema(Schema parentSchema) { this.parentSchema = parentSchema; }
+    
+    public List<Schema> getChildrenSchemas() { return childrenSchemas; }
+    public void setChildrenSchemas(List<Schema> childrenSchemas) { this.childrenSchemas = childrenSchemas; }
+    
+    public List<SchemaNode> getNodes() { return nodes; }
+    public void setNodes(List<SchemaNode> nodes) { this.nodes = nodes; }
+    
+    public List<Connection> getConnections() { return connections; }
+    public void setConnections(List<Connection> connections) { this.connections = connections; }
     
     public String getPath() { return path; }
     public void setPath(String path) { this.path = path; }
@@ -89,18 +128,6 @@ public class Schema {
     
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
-    
-    public Schema getParentSchema() { return parentSchema; }
-    public void setParentSchema(Schema parentSchema) { this.parentSchema = parentSchema; }
-    
-    public List<Schema> getChildrenSchemas() { return childrenSchemas; }
-    public void setChildrenSchemas(List<Schema> childrenSchemas) { this.childrenSchemas = childrenSchemas; }
-    
-    public List<SchemaNode> getNodes() { return nodes; }
-    public void setNodes(List<SchemaNode> nodes) { this.nodes = nodes; }
-    
-    public List<Connection> getConnections() { return connections; }
-    public void setConnections(List<Connection> connections) { this.connections = connections; }
     
     public String getFullPath() {
         return path != null ? path : "/" + name;
