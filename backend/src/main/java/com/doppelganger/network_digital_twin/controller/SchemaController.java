@@ -98,4 +98,9 @@ public class SchemaController {
         schemaService.deleteSchema(id);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/public")
+    public ResponseEntity<List<Schema>> getPublicSchemas() {
+        return ResponseEntity.ok(schemaService.getPublicSchemas());
+    }
 }

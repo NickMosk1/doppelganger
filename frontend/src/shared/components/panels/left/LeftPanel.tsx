@@ -8,56 +8,76 @@ import {
   SearchContainer,
   CategorySection,
 } from "./LeftPanel.styles";
-import { useStores } from "../../../../hooks";
-import { cableTypeLabels, CableTypes, DeviceCategories, deviceCategoryLabels, EditorNodes } from "../../../types";
-import { Input } from "../../Input";
-import { AddDeviceModal, AddCableModal } from "../../../ui";
-import { CollapsibleSection, ItemCard, AddItemButton } from "./components";
+import { CollapsibleSection } from "./components/CollapsibleSection/CollapsibleSection";
 import CatalogService from "../../../../services/catalog.service";
+import { cableTypeLabels, CableTypes, EditorNodes } from "../../../types";
+import { useStores } from "../../../../hooks";
+import { AddItemButton, ItemCard } from "./components";
+import { Input } from "../../Input";
+import { AddCableModal, AddDeviceModal } from "../../../ui";
 
 const catalogService = new CatalogService();
 
 type TabType = "catalog" | "explorer";
 
-export const LeftPanel: React.FC = observer(() => {
+// Конфигурация типов устройств
+const deviceTypeConfig = [
+  { type: "ROUTER", icon: "🌐", label: "Маршрутизаторы" },
+  { type: "SWITCH", icon: "🔌", label: "Коммутаторы" },
+  { type: "PLC", icon: "⚙️", label: "ПЛК" },
+  { type: "SERVER", icon: "🖥️", label: "Серверы" },
+  { type: "FIREWALL", icon: "🛡️", label: "Фаерволы" },
+  { type: "WORKSTATION", icon: "💻", label: "Рабочие станции" },
+];
+
+const LeftPanel: React.FC = observer(() => {
   const { catalogStore, editorStore } = useStores();
   const [activeTab, setActiveTab] = useState<TabType>("catalog");
   const [showAddDeviceModal, setShowAddDeviceModal] = useState(false);
   const [showAddCableModal, setShowAddCableModal] = useState(false);
+  const [selectedDeviceType, setSelectedDeviceType] = useState<string>("ROUTER"); // Добавлено
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Загрузка данных каталога
   useEffect(() => {
     const loadCatalog = async () => {
-      catalogStore.setLoading(true);
+      setIsLoading(true);
+      setError(null);
       try {
         const [devices, cables, publicSchemas] = await Promise.all([
           catalogService.getDevices(),
           catalogService.getCables(),
           catalogService.getPublicSchemas(),
         ]);
+        
         catalogStore.setDevices(devices);
         catalogStore.setCables(cables);
         catalogStore.setPublicSchemas(publicSchemas);
-      } catch (error) {
-        console.error("Failed to load catalog:", error);
+      } catch (err) {
+        console.error("Failed to load catalog:", err);
+        setError("Не удалось загрузить каталог");
       } finally {
-        catalogStore.setLoading(false);
+        setIsLoading(false);
       }
     };
+    
     loadCatalog();
   }, []);
 
-  // Добавление устройства через сервис
   const handleAddDevice = async (device: any) => {
     try {
-      const newDevice = await catalogService.addDevice(device);
+      // Добавляем тип устройства из выбранной категории
+      const newDevice = await catalogService.addDevice({
+        ...device,
+        type: selectedDeviceType,
+      });
       catalogStore.addDeviceSync(newDevice);
     } catch (error) {
       console.error("Failed to add device:", error);
     }
   };
 
-  // Добавление кабеля через сервис
   const handleAddCable = async (cable: any) => {
     try {
       const newCable = await catalogService.addCable(cable);
@@ -67,24 +87,19 @@ export const LeftPanel: React.FC = observer(() => {
     }
   };
 
-  const handleItemClick = (item: any, type: string) => {
-    // Определяем тип узла
-    let nodeType: EditorNodes;
-    switch (type) {
-      case "device":
-        nodeType = EditorNodes.DEVICE;
-        break;
-      case "subschema":
-        nodeType = EditorNodes.SUBSCHEMA;
-        break;
-      default:
-        nodeType = EditorNodes.DEVICE;
+  const handleItemClick = (item: any, sourceType: "device" | "cable" | "subschema") => {
+    if (sourceType === "cable") {
+      console.log("Выбран кабель:", item.name);
+      return;
     }
 
+    const nodeType = sourceType === "device" ? EditorNodes.DEVICE : EditorNodes.SUBSCHEMA;
+
     const newNode = {
-      id: `${type}-${Date.now()}`,
+      id: `${sourceType}-${Date.now()}`,
       type: nodeType,
-      deviceId: item.id,
+      deviceId: sourceType === "device" ? item.id : undefined,
+      schemaId: sourceType === "subschema" ? item.id : undefined,
       name: item.name,
       customName: item.name,
       position: { x: Math.random() * 300 + 100, y: Math.random() * 300 + 100 },
@@ -99,6 +114,34 @@ export const LeftPanel: React.FC = observer(() => {
     };
     editorStore.addNode(newNode);
   };
+
+  // Отображение загрузки
+  if (isLoading) {
+    return (
+      <LeftPanelContainer>
+        <div style={{ padding: "40px", textAlign: "center", color: "#999" }}>
+          Загрузка каталога...
+        </div>
+      </LeftPanelContainer>
+    );
+  }
+
+  // Отображение ошибки
+  if (error) {
+    return (
+      <LeftPanelContainer>
+        <div style={{ padding: "40px", textAlign: "center", color: "#ef4444" }}>
+          {error}
+          <button 
+            onClick={() => window.location.reload()} 
+            style={{ marginTop: "16px", padding: "8px 16px", cursor: "pointer" }}
+          >
+            Повторить
+          </button>
+        </div>
+      </LeftPanelContainer>
+    );
+  }
 
   return (
     <LeftPanelContainer>
@@ -125,14 +168,15 @@ export const LeftPanel: React.FC = observer(() => {
           <>
             {/* Устройства */}
             <CollapsibleSection title="УСТРОЙСТВА" icon="🖥️" defaultExpanded={true}>
-              {Object.values(DeviceCategories).map((category) => {
-                const devices = catalogStore.groupedDevices[category];
-                if (!devices || devices.length === 0) return null;
+              {deviceTypeConfig.map(({ type, icon, label }) => {
+                const devices = catalogStore.devices.filter(d => d.type === type);
+                if (devices.length === 0) return null;
                 return (
-                  <CollapsibleSection 
-                    key={category} 
-                    title={deviceCategoryLabels[category]} 
-                    icon="📁" 
+                  <CollapsibleSection
+                    key={type}
+                    title={label}
+                    icon={icon}
+                    nested={true}
                     defaultExpanded={false}
                   >
                     <CategorySection>
@@ -141,14 +185,21 @@ export const LeftPanel: React.FC = observer(() => {
                           key={device.id}
                           id={device.id}
                           name={device.name}
-                          icon={device.icon}
+                          icon={device.icon || icon}
                           description={device.description}
                           badge={device.manufacturer}
                           isCustom={device.isCustom}
                           onClick={() => handleItemClick(device, "device")}
                         />
                       ))}
-                      <AddItemButton onClick={() => setShowAddDeviceModal(true)} label="Добавить" />
+                      <AddItemButton
+                        onClick={() => {
+                          setSelectedDeviceType(type);
+                          setShowAddDeviceModal(true);
+                        }}
+                        label="Добавить"
+                        size="small"
+                      />
                     </CategorySection>
                   </CollapsibleSection>
                 );
@@ -165,6 +216,7 @@ export const LeftPanel: React.FC = observer(() => {
                     key={cableType} 
                     title={cableTypeLabels[cableType]} 
                     icon="📁" 
+                    nested={true}
                     defaultExpanded={false}
                   >
                     <CategorySection>
@@ -174,13 +226,17 @@ export const LeftPanel: React.FC = observer(() => {
                           id={cable.id}
                           name={cable.name}
                           icon={cable.icon}
-                          description={`До ${cable.maxLengthM}м, ${cable.pricePerMeter}₽/м`}
+                          description={`${cable.maxLengthM}м, ${cable.pricePerMeter}₽/м`}
                           stats={`${cable.maxLengthM}м`}
                           isCustom={cable.isCustom}
                           onClick={() => handleItemClick(cable, "cable")}
                         />
                       ))}
-                      <AddItemButton onClick={() => setShowAddCableModal(true)} label="Добавить" />
+                      <AddItemButton
+                        onClick={() => setShowAddCableModal(true)}
+                        label="Добавить"
+                        size="small"
+                      />
                     </CategorySection>
                   </CollapsibleSection>
                 );
@@ -223,6 +279,11 @@ export const LeftPanel: React.FC = observer(() => {
                       onClick={() => editorStore.selectNode(node.id)}
                     />
                   ))}
+                {editorStore.nodes.filter(n => n.type === EditorNodes.DEVICE).length === 0 && (
+                  <div style={{ padding: "16px", textAlign: "center", color: "#999", fontSize: "12px" }}>
+                    Нет устройств
+                  </div>
+                )}
               </CategorySection>
             </CollapsibleSection>
 
@@ -243,6 +304,11 @@ export const LeftPanel: React.FC = observer(() => {
                     />
                   );
                 })}
+                {editorStore.edges.length === 0 && (
+                  <div style={{ padding: "16px", textAlign: "center", color: "#999", fontSize: "12px" }}>
+                    Нет связей
+                  </div>
+                )}
               </CategorySection>
             </CollapsibleSection>
 
@@ -261,6 +327,11 @@ export const LeftPanel: React.FC = observer(() => {
                       onClick={() => editorStore.selectNode(node.id)}
                     />
                   ))}
+                {editorStore.nodes.filter(n => n.type === EditorNodes.SUBSCHEMA).length === 0 && (
+                  <div style={{ padding: "16px", textAlign: "center", color: "#999", fontSize: "12px" }}>
+                    Нет вложенных схем
+                  </div>
+                )}
               </CategorySection>
             </CollapsibleSection>
           </>
@@ -271,6 +342,7 @@ export const LeftPanel: React.FC = observer(() => {
         isOpen={showAddDeviceModal}
         onClose={() => setShowAddDeviceModal(false)}
         onAdd={handleAddDevice}
+        defaultType={selectedDeviceType}
       />
 
       <AddCableModal

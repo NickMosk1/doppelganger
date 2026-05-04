@@ -91,7 +91,7 @@ const AddCableModal: React.FC<AddCableModalProps> = ({ isOpen, onClose, onAdd })
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="➕ Добавить кабель"
+      title="Добавить кабель"
       footer={
         <>
           <Button variant="outline" onClick={onClose}>Отмена</Button>

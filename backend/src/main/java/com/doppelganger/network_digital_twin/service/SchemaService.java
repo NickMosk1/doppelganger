@@ -33,6 +33,11 @@ public class SchemaService {
     }
     
     // ============ QUERIES ============
+
+    public List<Schema> getPublicSchemas() {
+        log.debug("Fetching public schemas");
+        return schemaRepository.findByIsPublicTrue();
+    }
     
     public List<Schema> getAllSchemas() {
         log.debug("Fetching all schemas");

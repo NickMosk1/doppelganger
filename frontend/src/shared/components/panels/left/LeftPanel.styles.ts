@@ -72,7 +72,9 @@ export const TabContent = styled.div`
 `;
 
 export const CategorySection = styled.div`
-  margin-bottom: 24px;
+  display: flex;
+  margin: 5px 10px;
+  gap: 5px;
 `;
 
 export const CategoryTitle = styled.div`
