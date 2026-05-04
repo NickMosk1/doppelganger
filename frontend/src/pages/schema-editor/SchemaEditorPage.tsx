@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect, useState, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { observer } from "mobx-react-lite";
+import { debounce } from "lodash";
 import { useStores } from "../../hooks/useStores";
 import {
   EditorContainer,
@@ -8,67 +9,38 @@ import {
   SchemaName,
   ActionButtons,
   MainContent,
+  DraftIndicator,
 } from "./SchemaEditorPage.styles";
+import { Button, LeftPanel, NetworkCanvas, RightPanel } from "../../shared";
 import EditorService from "../../services/editor.service";
-import { Button, LeftPanel, NetworkCanvas } from "../../shared";
+import SimulationService from "../../services/simulation.service";
+import CatalogService from "../../services/catalog.service";
 
 const editorService = new EditorService();
+const simulationService = new SimulationService();
+const catalogService = new CatalogService();
 
-const SchemaEditorPage: React.FC = observer(() => {
+export const SchemaEditorPage: React.FC = observer(() => {
   const { id } = useParams<{ id: string }>();
-  const { editorStore, catalogStore } = useStores();
+  const navigate = useNavigate();
+  const { editorStore, draftStore, simulationStore, catalogStore } = useStores();
   const [schemaName, setSchemaName] = useState("");
-  const [showSimulationDialog, setShowSimulationDialog] = useState(false);
-  const [showHistoryDialog, setShowHistoryDialog] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
+  // Загрузка каталога
   useEffect(() => {
-    const loadSchema = async () => {
-      if (id && id !== "new") {
-        editorStore.setLoading(true);
-        try {
-          const fullSchema = await editorService.getSchemaFull(id);
-
-          const nodes = fullSchema.nodes.map(node => ({
-            id: node.id,
-            type: node.nodeType,
-            deviceId: node.device?.id,
-            name: node.device?.name || node.customName,
-            customName: node.customName,
-            position: { x: node.positionX, y: node.positionY },
-          }));
-
-          const edges = fullSchema.connections.map(conn => ({
-            id: conn.id,
-            source: conn.sourceNode.id,
-            target: conn.targetNode.id,
-            cableId: conn.cable.id,
-            lengthM: conn.lengthM,
-          }));
-
-          editorStore.setNodes(nodes);
-          editorStore.setEdges(edges);
-          setSchemaName(fullSchema.name);
-        } catch (error) {
-          console.error("Failed to load schema:", error);
-        } finally {
-          editorStore.setLoading(false);
-        }
-      } else {
-        editorStore.clearEditor();
-        setSchemaName("Новая схема");
-      }
-    };
-
-    loadSchema();
-
-    // Загружаем каталог
     const loadCatalog = async () => {
       catalogStore.setLoading(true);
       try {
-        // TODO: Загрузить устройства, кабели, публичные схемы из API
-        // catalogStore.setDevices(devices);
-        // catalogStore.setCables(cables);
-        // catalogStore.setPublicSchemas(schemas);
+        // TODO: Раскомментировать когда бэк готов
+        const [devices, cables, publicSchemas] = await Promise.all([
+          catalogService.getDevices(),
+          catalogService.getCables(),
+          catalogService.getPublicSchemas(),
+        ]);
+        catalogStore.setDevices(devices);
+        catalogStore.setCables(cables);
+        catalogStore.setPublicSchemas(publicSchemas);
       } catch (error) {
         console.error("Failed to load catalog:", error);
       } finally {
@@ -76,62 +48,271 @@ const SchemaEditorPage: React.FC = observer(() => {
       }
     };
     loadCatalog();
+  }, []);
+
+  // Загрузка схемы (из бэка или черновика)
+  useEffect(() => {
+    const loadSchema = async () => {
+      if (!id || id === "new") {
+        // Новая схема - создаем черновик
+        const newId = `draft-${Date.now()}`;
+        draftStore.createDraft(newId, "Новая схема", [], []);
+        draftStore.setCurrentDraft(newId);
+        editorStore.setCurrentSchemaId(newId);
+        setSchemaName("Новая схема");
+        return;
+      }
+
+      // Проверяем наличие черновика
+      const draft = draftStore.getDraftById(id);
+      
+      if (draft) {
+        // Загружаем из черновика
+        editorStore.setNodes(draft.nodes);
+        editorStore.setEdges(draft.edges);
+        editorStore.setCurrentSchemaId(id);
+        setSchemaName(draft.schemaName);
+        draftStore.setCurrentDraft(id);
+      } else {
+        // Загружаем с бэка
+        editorStore.setLoading(true);
+        try {
+          const fullSchema = await editorService.getSchemaFull(id);
+          const nodes = fullSchema.nodes.map(node => ({
+            id: node.id,
+            type: node.nodeType,
+            deviceId: node.device?.id,
+            name: node.device?.name || node.customName,
+            customName: node.customName,
+            position: { x: node.positionX, y: node.positionY },
+            isEnabled: true,
+            temperatureOffset: 0,
+            emiOffset: 0,
+            vibrationOffset: 0,
+            dustOffset: 0,
+          }));
+          const edges = fullSchema.connections.map(conn => ({
+            id: conn.id,
+            source: conn.sourceNode.id,
+            target: conn.targetNode.id,
+            cableId: conn.cable.id,
+            lengthM: conn.lengthM,
+            isActive: true,
+          }));
+
+          editorStore.setNodes(nodes);
+          editorStore.setEdges(edges);
+          editorStore.setCurrentSchemaId(id);
+          setSchemaName(fullSchema.name);
+
+          // Создаем черновик
+          draftStore.createDraft(id, fullSchema.name, nodes, edges);
+          draftStore.markAsSaved(id);
+        } catch (error) {
+          console.error("Failed to load schema:", error);
+        } finally {
+          editorStore.setLoading(false);
+        }
+      }
+    };
+
+    loadSchema();
 
     return () => {
-      editorStore.clearEditor();
+      // Не очищаем editorStore при размонтировании, чтобы сохранить черновик
     };
   }, [id]);
 
+  // Автосохранение черновика при изменениях (debounced)
+  const autoSaveDraft = useCallback(
+    debounce((schemaId: string, name: string, nodes: any[], edges: any[]) => {
+      if (schemaId) {
+        draftStore.updateDraft(schemaId, {
+          schemaName: name,
+          nodes: nodes,
+          edges: edges,
+        });
+        console.log("Draft auto-saved");
+      }
+    }, 1000),
+    []
+  );
+
+  // Следим за изменениями и автосохраняем
+  useEffect(() => {
+    if (draftStore.currentDraft && id) {
+      autoSaveDraft(id, schemaName, editorStore.nodes, editorStore.edges);
+    }
+  }, [editorStore.nodes, editorStore.edges, schemaName, id]);
+
   const handleSave = async () => {
-    // TODO: Сохранить схему
-    console.log("Save schema", editorStore.nodes, editorStore.edges);
+    if (!id || id === "new") {
+      // Создаем новую схему на бэке
+      setIsSaving(true);
+      try {
+        const newSchema = await editorService.createSchema(
+          schemaName,
+          "",
+          false
+        );
+        
+        // Сохраняем узлы и связи
+        for (const node of editorStore.nodes) {
+          if (node.type === "DEVICE" && node.deviceId) {
+            await editorService.createNode(newSchema.id, node.deviceId, node.position, node.customName);
+          }
+        }
+        
+        for (const edge of editorStore.edges) {
+          await editorService.createConnection(newSchema.id, edge.source, edge.target, edge.cableId || "", edge.lengthM);
+        }
+        
+        draftStore.markAsSaved(newSchema.id);
+        draftStore.clearDraft(id ?? "");
+        editorStore.setCurrentSchemaId(newSchema.id);
+        navigate(`/editor/${newSchema.id}`, { replace: true });
+      } catch (error) {
+        console.error("Failed to save schema:", error);
+        alert("Ошибка при сохранении схемы");
+      } finally {
+        setIsSaving(false);
+      }
+    } else {
+      // Обновляем существующую схему
+      setIsSaving(true);
+      try {
+        await editorService.updateSchema(id, { name: schemaName });
+        // TODO: Обновить узлы и связи (опционально)
+        draftStore.markAsSaved(id);
+        alert("Схема сохранена");
+      } catch (error) {
+        console.error("Failed to save schema:", error);
+        alert("Ошибка при сохранении схемы");
+      } finally {
+        setIsSaving(false);
+      }
+    }
   };
 
   const handleValidate = async () => {
-    if (!id || id === "new") return;
-    // TODO: Валидация
+    if (!id || id === "new") {
+      alert("Сначала сохраните схему");
+      return;
+    }
+    
+    try {
+      const result = await editorService.validateSchema(id);
+      draftStore.setValidationResult(id, result.errors || []);
+      if (result.errors?.length > 0) {
+        alert(`Найдено ${result.errors.length} проблем:\n${result.errors.map((e: any) => e.message).join("\n")}`);
+      } else {
+        alert("Схема валидна!");
+      }
+    } catch (error) {
+      console.error("Validation failed:", error);
+      alert("Ошибка при валидации");
+    }
   };
 
-  const handleRunSimulation = () => {
-    setShowSimulationDialog(true);
+  const handleRunSimulation = async () => {
+    if (!id || id === "new") {
+      alert("Сначала сохраните схему");
+      return;
+    }
+    
+    simulationStore.setRunning(true);
+    try {
+      const result = await simulationService.runSimulation(id, {
+        name: `Симуляция ${new Date().toLocaleTimeString()}`,
+        durationSeconds: simulationStore.config.durationSeconds,
+        factors: simulationStore.globalFactors,
+      });
+      
+      simulationStore.setCurrentResult(result);
+      
+      // Показываем результат
+      const grade = result.summary?.grade || "F";
+      const maxLatency = result.summary?.maxLatencyMs || 0;
+      alert(`Симуляция завершена!\nОценка: ${grade}\nМакс. задержка: ${maxLatency} мс`);
+    } catch (error) {
+      console.error("Simulation failed:", error);
+      alert("Ошибка при запуске симуляции");
+    } finally {
+      simulationStore.setRunning(false);
+    }
   };
 
-  const handleShowHistory = () => {
-    setShowHistoryDialog(true);
+  const handleShowHistory = async () => {
+    if (!id || id === "new") {
+      alert("Сначала сохраните схему");
+      return;
+    }
+    
+    try {
+      const history = await simulationService.getSimulationHistory(id);
+      if (history.length === 0) {
+        alert("История симуляций пуста");
+      } else {
+        const historyText = history.map(h => 
+          `${new Date(h.startedAt).toLocaleString()} - ${h.name}: ${h.grade} (${h.score}%)`
+        ).join("\n");
+        alert(`История симуляций:\n${historyText}`);
+      }
+    } catch (error) {
+      console.error("Failed to load history:", error);
+      alert("Ошибка при загрузке истории");
+    }
   };
 
   return (
     <EditorContainer onDragOver={(e) => e.preventDefault()}>
       <HeaderActions>
-        <SchemaName>
-          <input
-            type="text"
-            value={schemaName}
-            onChange={(e) => setSchemaName(e.target.value)}
-            placeholder="Название схемы"
-          />
-        </SchemaName>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <SchemaName>
+            <input
+              type="text"
+              value={schemaName}
+              onChange={(e) => setSchemaName(e.target.value)}
+              placeholder="Название схемы"
+            />
+          </SchemaName>
+          {draftStore.hasLocalChanges && (
+            <DraftIndicator>
+              📝 Черновик
+            </DraftIndicator>
+          )}
+          {draftStore.lastValidationTime && draftStore.validationErrors.length === 0 && (
+            <DraftIndicator $isValid>
+              ✅ Валидация: {new Date(draftStore.lastValidationTime).toLocaleTimeString()}
+            </DraftIndicator>
+          )}
+          {draftStore.lastValidationTime && draftStore.validationErrors.length > 0 && (
+            <DraftIndicator style={{ background: "#ef444420", color: "#ef4444", borderColor: "#ef4444" }}>
+              ⚠️ {draftStore.validationErrors.length} ошибок
+            </DraftIndicator>
+          )}
+        </div>
         <ActionButtons>
           <Button variant="outline" onClick={handleValidate}>
             ✓ Валидация
           </Button>
-          <Button variant="outline" onClick={handleRunSimulation}>
-            ▶ Симуляция
+          <Button variant="outline" onClick={handleRunSimulation} disabled={simulationStore.isRunning}>
+            {simulationStore.isRunning ? "⏳ Симуляция..." : "▶ Симуляция"}
           </Button>
           <Button variant="outline" onClick={handleShowHistory}>
             📊 История
           </Button>
-          <Button onClick={handleSave}>Сохранить</Button>
+          <Button onClick={handleSave} loading={isSaving}>
+            💾 Сохранить
+          </Button>
         </ActionButtons>
       </HeaderActions>
 
       <MainContent>
         <LeftPanel />
         <NetworkCanvas schemaId={id || "new"} />
-        {/* <RightPanel /> */}
+        <RightPanel />
       </MainContent>
-
-      {/* TODO: Добавить диалоги симуляции и истории */}
     </EditorContainer>
   );
 });

@@ -6,6 +6,7 @@ export enum NodeStatus {
   DEGRADED = "DEGRADED",
   FAILED = "FAILED",
   OVERHEATING = "OVERHEATING",
+  OFFLINE = "OFFLINE",
 };
 
 export interface SchemaNodeDevice {

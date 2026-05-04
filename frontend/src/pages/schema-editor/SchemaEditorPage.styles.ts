@@ -62,3 +62,16 @@ export const MainContent = styled.div`
     border-radius: 8px 0 0 8px;
   }
 `;
+
+interface DraftIndicatorProps {
+  $isValid?: boolean;
+}
+
+export const DraftIndicator = styled.span<DraftIndicatorProps>`
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: ${props => props.$isValid ? '#10b98120' : '#f59e0b20'};
+  color: ${props => props.$isValid ? '#10b981' : '#f59e0b'};
+  border: 1px solid ${props => props.$isValid ? '#10b981' : '#f59e0b'};
+`;

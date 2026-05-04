@@ -4,4 +4,6 @@ export { default as UserStore } from "./user.store";
 export { default as EditorStore } from "./editor.store";
 export { default as CatalogStore } from "./catalog.store";
 export { default as SchemaStore } from "./schema.store";
+export { default as DraftStore } from "./draft.store";
+export { default as SimulationStore } from "./simulation.store";
 export * from "./StoreProvider";

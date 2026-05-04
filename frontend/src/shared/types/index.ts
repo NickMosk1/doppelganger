@@ -4,3 +4,6 @@ export * from "./editor";
 export * from "./catalog";
 export * from "./schema";
 export * from "./tabs";
+export * from "./draft";
+export * from "./simulation";
+export * from "./validation";

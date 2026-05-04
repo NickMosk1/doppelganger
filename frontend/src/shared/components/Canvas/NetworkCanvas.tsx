@@ -34,9 +34,9 @@ const nodeTypes: NodeTypes = {
 
 interface NetworkCanvasProps {
   schemaId: string;
-}
+};
 
-const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
+const CanvasContent: React.FC<NetworkCanvasProps> = observer(({}) => {
   const { editorStore } = useStores();
   const { setViewport } = useReactFlow();
 

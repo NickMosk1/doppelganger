@@ -1,5 +1,5 @@
 import { makeAutoObservable } from "mobx";
-import { EditorEdge, EditorNode, NodePosition } from "../shared";
+import { EditorEdge, EditorNode, EditorNodes, NodePosition, NodeStatus } from "../shared";
 import { Nullable } from "../utils";
 
 class EditorStore {
@@ -10,6 +10,12 @@ class EditorStore {
   private _selectedCableId: Nullable<string> = null;
   private _isLoading: boolean = false;
   private _validationErrors: any[] = [];
+
+  // Дополнительные поля для редактора
+  private _currentSchemaId: Nullable<string> = null;
+  private _schemaName: string = "";
+  private _zoom: number = 1;
+  private _viewport: { x: number; y: number } = { x: 0, y: 0 };
 
   constructor() {
     makeAutoObservable(this);
@@ -51,6 +57,37 @@ class EditorStore {
     return this._validationErrors;
   }
 
+  get currentSchemaId() {
+    return this._currentSchemaId;
+  }
+
+  get schemaName() {
+    return this._schemaName;
+  }
+
+  get zoom() {
+    return this._zoom;
+  }
+
+  get viewport() {
+    return this._viewport;
+  }
+
+  // Статистика
+  get devicesCount() {
+    return this._nodes.filter(n => n.type === EditorNodes.DEVICE).length;
+  }
+
+  get subschemasCount() {
+    return this._nodes.filter(n => n.type === EditorNodes.SUBSCHEMA).length;
+  }
+
+  get connectionsCount() {
+    return this._edges.length;
+  }
+
+  // ============ SETTERS ============
+  
   setNodes(nodes: EditorNode[]) {
     this._nodes = nodes;
   }
@@ -59,6 +96,24 @@ class EditorStore {
     this._edges = edges;
   }
 
+  setCurrentSchemaId(id: Nullable<string>) {
+    this._currentSchemaId = id;
+  }
+
+  setSchemaName(name: string) {
+    this._schemaName = name;
+  }
+
+  setZoom(zoom: number) {
+    this._zoom = zoom;
+  }
+
+  setViewport(x: number, y: number) {
+    this._viewport = { x, y };
+  }
+
+  // ============ NODE METHODS ============
+  
   addNode(node: EditorNode) {
     this._nodes.push(node);
   }
@@ -77,6 +132,45 @@ class EditorStore {
     }
   }
 
+  updateNodeField<T extends keyof EditorNode>(nodeId: string, field: T, value: EditorNode[T]) {
+    const node = this._nodes.find(n => n.id === nodeId);
+    if (node) {
+      node[field] = value;
+    }
+  }
+
+  updateNodeStatus(nodeId: string, status: NodeStatus) {
+    const node = this._nodes.find(n => n.id === nodeId);
+    if (node) {
+      node.status = status;
+    }
+  }
+
+  updateNodeEnabled(nodeId: string, isEnabled: boolean) {
+    const node = this._nodes.find(n => n.id === nodeId);
+    if (node) {
+      node.isEnabled = isEnabled;
+      if (!isEnabled) {
+        node.status = NodeStatus.OFFLINE;
+      }
+    }
+  }
+
+  updateNodeOffsets(nodeId: string, offsets: {
+    temperatureOffset?: number;
+    emiOffset?: number;
+    vibrationOffset?: number;
+    dustOffset?: number;
+  }) {
+    const node = this._nodes.find(n => n.id === nodeId);
+    if (node) {
+      if (offsets.temperatureOffset !== undefined) node.temperatureOffset = offsets.temperatureOffset;
+      if (offsets.emiOffset !== undefined) node.emiOffset = offsets.emiOffset;
+      if (offsets.vibrationOffset !== undefined) node.vibrationOffset = offsets.vibrationOffset;
+      if (offsets.dustOffset !== undefined) node.dustOffset = offsets.dustOffset;
+    }
+  }
+
   removeNode(nodeId: string) {
     this._nodes = this._nodes.filter(n => n.id !== nodeId);
     this._edges = this._edges.filter(e => e.source !== nodeId && e.target !== nodeId);
@@ -85,6 +179,8 @@ class EditorStore {
     }
   }
 
+  // ============ EDGE METHODS ============
+  
   addEdge(edge: EditorEdge) {
     this._edges.push(edge);
   }
@@ -95,6 +191,23 @@ class EditorStore {
       if (data.lengthM !== undefined) edge.lengthM = data.lengthM;
       if (data.cableId !== undefined) edge.cableId = data.cableId;
       if (data.cableInfo !== undefined) edge.cableInfo = data.cableInfo;
+      if (data.bandwidthMbps !== undefined) edge.bandwidthMbps = data.bandwidthMbps;
+      if (data.isActive !== undefined) edge.isActive = data.isActive;
+      if (data.status !== undefined) edge.status = data.status;
+    }
+  }
+
+  updateEdgeBandwidth(edgeId: string, bandwidthMbps: number) {
+    const edge = this._edges.find(e => e.id === edgeId);
+    if (edge) {
+      edge.bandwidthMbps = bandwidthMbps;
+    }
+  }
+
+  updateEdgeActive(edgeId: string, isActive: boolean) {
+    const edge = this._edges.find(e => e.id === edgeId);
+    if (edge) {
+      edge.isActive = isActive;
     }
   }
 
@@ -105,6 +218,8 @@ class EditorStore {
     }
   }
 
+  // ============ SELECTION METHODS ============
+  
   selectNode(nodeId: Nullable<string>) {
     this._selectedNodeId = nodeId;
     this._selectedEdgeId = null;
@@ -129,6 +244,8 @@ class EditorStore {
     this._selectedCableId = null;
   }
 
+  // ============ UTILITY METHODS ============
+  
   setLoading(loading: boolean) {
     this._isLoading = loading;
   }
@@ -144,6 +261,32 @@ class EditorStore {
     this._selectedEdgeId = null;
     this._selectedCableId = null;
     this._validationErrors = [];
+    this._currentSchemaId = null;
+    this._schemaName = "";
+  }
+
+  // ============ BULK OPERATIONS ============
+  
+  loadSchema(schemaId: string, schemaName: string, nodes: EditorNode[], edges: EditorEdge[]) {
+    this._currentSchemaId = schemaId;
+    this._schemaName = schemaName;
+    this._nodes = nodes;
+    this._edges = edges;
+    this._selectedNodeId = null;
+    this._selectedEdgeId = null;
+    this._validationErrors = [];
+  }
+
+  getNodeById(nodeId: string): EditorNode | undefined {
+    return this._nodes.find(n => n.id === nodeId);
+  }
+
+  getEdgeById(edgeId: string): EditorEdge | undefined {
+    return this._edges.find(e => e.id === edgeId);
+  }
+
+  getEdgesByNode(nodeId: string): EditorEdge[] {
+    return this._edges.filter(e => e.source === nodeId || e.target === nodeId);
   }
 }
 

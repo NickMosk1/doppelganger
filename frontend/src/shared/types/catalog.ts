@@ -36,6 +36,9 @@ export interface CatalogDevice {
   category: DeviceCategories;
   baseLatencyMs?: number;
   maxThroughputMbps?: number;
+  authorId?: string;
+  isCustom?: boolean;
+  description?: string;
 };
 
 export interface CatalogCable {
@@ -48,6 +51,9 @@ export interface CatalogCable {
   icon: string;
   immunityRating?: number;
   temperatureRating?: number;
+  authorId?: string;
+  isCustom?: boolean;
+  description?: string;
 };
 
 export interface CatalogSubSchema {
@@ -55,4 +61,22 @@ export interface CatalogSubSchema {
   name: string;
   description: string;
   ownerName: string;
+};
+
+export const deviceCategoryLabels: Record<DeviceCategories, string> = {
+  [DeviceCategories.ROUTERS]: "Маршрутизаторы",
+  [DeviceCategories.SWITCHES]: "Коммутаторы",
+  [DeviceCategories.PLCS]: "ПЛК",
+  [DeviceCategories.SERVERS]: "Серверы",
+  [DeviceCategories.WORK_STATIONS]: "Рабочие станции",
+  [DeviceCategories.FIRE_WALLS]: "Фаерволы",
+};
+
+export const cableTypeLabels: Record<CableTypes, string> = {
+  [CableTypes.COPPER]: "Медные",
+  [CableTypes.FIBER]: "Оптоволокно",
+  [CableTypes.TWISTED_PAIR]: "Витая пара",
+  [CableTypes.COAXIAL]: "Коаксиальные",
+  [CableTypes.SHIELDED]: "Экранированные",
+  [CableTypes.INDUSTRIAL]: "Промышленные",
 };
