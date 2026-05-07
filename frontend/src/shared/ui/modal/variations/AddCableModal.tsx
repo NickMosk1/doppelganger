@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { CableTypes } from '../../../types';
 import Modal from '../Modal';
@@ -11,6 +11,13 @@ const FormGroup = styled.div`
 const FormRow = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+`;
+
+const FormRow3 = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 12px;
   margin-bottom: 16px;
 `;
@@ -35,45 +42,97 @@ interface AddCableModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAdd: (cable: any) => void;
+  defaultType?: CableTypes;
 }
 
-const AddCableModal: React.FC<AddCableModalProps> = ({ isOpen, onClose, onAdd }) => {
+const AddCableModal: React.FC<AddCableModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  onAdd,
+  defaultType = CableTypes.COPPER 
+}) => {
   const [formData, setFormData] = useState({
     name: '',
-    type: CableTypes.COPPER,
+    type: defaultType,
+    manufacturer: '',
+    model: '',
     maxLengthM: 100,
     attenuationDbPerKm: 20,
-    pricePerMeter: 10,
+    propagationSpeed: 0.65,
+    impedanceOhms: 100,
+    coreDiameterUm: null as number | null,
     immunityRating: 5,
     temperatureRating: 60,
+    shieldingType: 0,
+    pricePerMeter: 10,
     description: '',
   });
 
-  const handleSubmit = () => {
-    const iconMap: Record<CableTypes, string> = {
-      [CableTypes.COPPER]: '🔌',
-      [CableTypes.FIBER]: '💡',
-      [CableTypes.TWISTED_PAIR]: '🔄',
-      [CableTypes.COAXIAL]: '📺',
-      [CableTypes.SHIELDED]: '🛡️',
-      [CableTypes.INDUSTRIAL]: '🏭',
-    };
+  useEffect(() => {
+    if (isOpen) {
+      setFormData(prev => ({ 
+        ...prev, 
+        type: defaultType,
+        name: '',
+      }));
+    }
+  }, [defaultType, isOpen]);
 
+  const handleSubmit = () => {
+    // Отправляем все поля, которые ожидает бэкенд
     onAdd({
-      ...formData,
-      id: `cable-${Date.now()}`,
-      icon: iconMap[formData.type],
+      name: formData.name,
+      type: formData.type,
+      manufacturer: formData.manufacturer || null,
+      model: formData.model || null,
+      maxLengthM: formData.maxLengthM,
+      attenuationDbPerKm: formData.attenuationDbPerKm,
+      propagationSpeed: formData.propagationSpeed,
+      impedanceOhms: formData.impedanceOhms,
+      coreDiameterUm: formData.coreDiameterUm,
+      immunityRating: formData.immunityRating,
+      temperatureRating: formData.temperatureRating,
+      shieldingType: formData.shieldingType,
+      pricePerMeter: formData.pricePerMeter,
+      description: formData.description || null,
+      isActive: true,
       isCustom: true,
     });
     onClose();
     setFormData({
       name: '',
-      type: CableTypes.COPPER,
+      type: defaultType,
+      manufacturer: '',
+      model: '',
       maxLengthM: 100,
       attenuationDbPerKm: 20,
-      pricePerMeter: 10,
+      propagationSpeed: 0.65,
+      impedanceOhms: 100,
+      coreDiameterUm: null,
       immunityRating: 5,
       temperatureRating: 60,
+      shieldingType: 0,
+      pricePerMeter: 10,
+      description: '',
+    });
+  };
+
+  const handleClose = () => {
+    onClose();
+    setFormData({
+      name: '',
+      type: defaultType,
+      manufacturer: '',
+      model: '',
+      maxLengthM: 100,
+      attenuationDbPerKm: 20,
+      propagationSpeed: 0.65,
+      impedanceOhms: 100,
+      coreDiameterUm: null,
+      immunityRating: 5,
+      temperatureRating: 60,
+      shieldingType: 0,
+      pricePerMeter: 10,
       description: '',
     });
   };
@@ -87,31 +146,39 @@ const AddCableModal: React.FC<AddCableModalProps> = ({ isOpen, onClose, onAdd })
     { value: CableTypes.INDUSTRIAL, label: 'Промышленный' },
   ];
 
+  const shieldingTypeOptions = [
+    { value: 0, label: 'Без экрана' },
+    { value: 1, label: 'Фольга' },
+    { value: 2, label: 'Оплетка' },
+    { value: 3, label: 'Двойной экран' },
+  ];
+
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
-      title="Добавить кабель"
+      onClose={handleClose}
+      title="➕ Добавить кабель"
       footer={
         <>
-          <Button variant="outline" onClick={onClose}>Отмена</Button>
+          <Button variant="outline" onClick={handleClose}>Отмена</Button>
           <Button onClick={handleSubmit}>Добавить</Button>
         </>
       }
     >
       <FormGroup>
         <Input
-          label="Название"
+          label="Название *"
           value={formData.name}
           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          placeholder="Например: Кабель СИП-4 2х16"
+          placeholder="Например: UTP Cat6"
+          required
           fullWidth
         />
       </FormGroup>
 
       <FormRow>
         <FormGroup>
-          <Label>Тип кабеля</Label>
+          <Label>Тип кабеля *</Label>
           <Select
             value={formData.type}
             onChange={(e) => setFormData({ ...formData, type: e.target.value as CableTypes })}
@@ -124,8 +191,32 @@ const AddCableModal: React.FC<AddCableModalProps> = ({ isOpen, onClose, onAdd })
 
         <FormGroup>
           <Input
+            label="Производитель"
+            value={formData.manufacturer}
+            onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
+            placeholder="Belden, Corning..."
+            fullWidth
+          />
+        </FormGroup>
+      </FormRow>
+
+      <FormRow>
+        <FormGroup>
+          <Input
+            label="Модель"
+            value={formData.model}
+            onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+            placeholder="Модель кабеля"
+            fullWidth
+          />
+        </FormGroup>
+
+        <FormGroup>
+          <Input
             label="Макс. длина (м)"
             type="number"
+            step="10"
+            min="0"
             value={formData.maxLengthM}
             onChange={(e) => setFormData({ ...formData, maxLengthM: Number(e.target.value) })}
             fullWidth
@@ -139,6 +230,7 @@ const AddCableModal: React.FC<AddCableModalProps> = ({ isOpen, onClose, onAdd })
             label="Затухание (дБ/км)"
             type="number"
             step="0.1"
+            min="0"
             value={formData.attenuationDbPerKm}
             onChange={(e) => setFormData({ ...formData, attenuationDbPerKm: Number(e.target.value) })}
             fullWidth
@@ -147,16 +239,45 @@ const AddCableModal: React.FC<AddCableModalProps> = ({ isOpen, onClose, onAdd })
 
         <FormGroup>
           <Input
-            label="Цена (₽/м)"
+            label="Скорость распространения (%)"
             type="number"
-            value={formData.pricePerMeter}
-            onChange={(e) => setFormData({ ...formData, pricePerMeter: Number(e.target.value) })}
+            step="0.01"
+            min="0"
+            max="1"
+            value={formData.propagationSpeed}
+            onChange={(e) => setFormData({ ...formData, propagationSpeed: Number(e.target.value) })}
             fullWidth
           />
         </FormGroup>
       </FormRow>
 
       <FormRow>
+        <FormGroup>
+          <Input
+            label="Импеданс (Ом)"
+            type="number"
+            step="5"
+            min="0"
+            value={formData.impedanceOhms}
+            onChange={(e) => setFormData({ ...formData, impedanceOhms: Number(e.target.value) })}
+            fullWidth
+          />
+        </FormGroup>
+
+        <FormGroup>
+          <Input
+            label="Диаметр жилы (мкм)"
+            type="number"
+            step="0.1"
+            min="0"
+            value={formData.coreDiameterUm || ''}
+            onChange={(e) => setFormData({ ...formData, coreDiameterUm: e.target.value ? Number(e.target.value) : null })}
+            fullWidth
+          />
+        </FormGroup>
+      </FormRow>
+
+      <FormRow3>
         <FormGroup>
           <Input
             label="Помехоустойчивость (1-10)"
@@ -178,7 +299,31 @@ const AddCableModal: React.FC<AddCableModalProps> = ({ isOpen, onClose, onAdd })
             fullWidth
           />
         </FormGroup>
-      </FormRow>
+
+        <FormGroup>
+          <Label>Тип экранирования</Label>
+          <Select
+            value={formData.shieldingType}
+            onChange={(e) => setFormData({ ...formData, shieldingType: Number(e.target.value) })}
+          >
+            {shieldingTypeOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </Select>
+        </FormGroup>
+      </FormRow3>
+
+      <FormGroup>
+        <Input
+          label="Цена (₽/м)"
+          type="number"
+          step="5"
+          min="0"
+          value={formData.pricePerMeter}
+          onChange={(e) => setFormData({ ...formData, pricePerMeter: Number(e.target.value) })}
+          fullWidth
+        />
+      </FormGroup>
 
       <FormGroup>
         <Input

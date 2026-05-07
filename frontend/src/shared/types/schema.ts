@@ -1,13 +1,5 @@
 import { DeviceTypes, CableTypes } from "./catalog";
-import { EditorNodes } from "./editor";
-
-export enum NodeStatus {
-  OPERATIONAL = "OPERATIONAL",
-  DEGRADED = "DEGRADED",
-  FAILED = "FAILED",
-  OVERHEATING = "OVERHEATING",
-  OFFLINE = "OFFLINE",
-};
+import { EditorNodes, NodeStatus } from "./editor";
 
 export interface SchemaNodeDevice {
   id: string;

@@ -3,7 +3,6 @@ import ReactFlow, {
   Controls,
   MiniMap,
   Panel,
-  addEdge,
   useNodesState,
   useEdgesState,
   Connection,
@@ -19,50 +18,115 @@ import ReactFlow, {
   BackgroundVariant,
   useViewport,
   useReactFlow,
+  addEdge,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { observer } from "mobx-react-lite";
 import { useStores } from "../../../hooks/useStores";
-import { DeviceNode, SubSchemaNode } from "./nodes";
+import { DeviceNode, SubSchemaNode, CableNode } from "./nodes";
 import { CanvasContainer, CanvasWrapper } from "./NetworkCanvas.styles";
 import AxesWithGrid from "./AxesWithGrid";
+import { EditorEdge, EditorNode, EditorNodes } from "../../types";
 
 const nodeTypes: NodeTypes = {
   device: DeviceNode,
   subschema: SubSchemaNode,
+  cable: CableNode,
 };
 
 interface NetworkCanvasProps {
   schemaId: string;
-};
+}
 
-const CanvasContent: React.FC<NetworkCanvasProps> = observer(({}) => {
+const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
   const { editorStore } = useStores();
-  const { setViewport } = useReactFlow();
+  const { setCenter } = useReactFlow();
+  const viewport = useViewport();
 
-  const initialNodes: Node[] = editorStore.nodes.map(node => ({
-    id: node.id,
-    type: node.type,
-    position: node.position,
-    data: {
-      label: node.customName || node.name,
-      deviceId: node.deviceId,
-      schemaId: node.schemaId,
-      type: node.type,
-    },
-  }));
+  // Конвертация узлов
+  const convertToReactFlowNodes = useCallback((nodes: EditorNode[]): Node[] => {
+    return nodes.map(node => {
+      if (node.type === EditorNodes.CABLE) {
+        return {
+          id: node.id,
+          type: "cable",
+          position: node.position,
+          data: {
+            id: node.id,
+            name: node.name,
+            lengthM: node.lengthM || 10,
+            cableType: node.cableType || "Ethernet",
+          },
+        };
+      }
+      
+      if (node.type === EditorNodes.DEVICE) {
+        return {
+          id: node.id,
+          type: "device",
+          position: node.position,
+          data: {
+            id: node.id,
+            label: node.customName || node.name,
+            deviceId: node.deviceId,
+            type: "DEVICE",
+            status: node.status,
+            ports: node.ports,
+            icon: node.icon,
+          },
+        };
+      }
+      
+      return {
+        id: node.id,
+        type: "subschema",
+        position: node.position,
+        data: {
+          id: node.id,
+          label: node.customName || node.name,
+          schemaId: node.schemaId,
+        },
+      };
+    });
+  }, []);
 
-  const initialEdges: Edge[] = editorStore.edges.map(edge => ({
-    id: edge.id,
-    source: edge.source,
-    target: edge.target,
-    label: `${edge.lengthM}м`,
-    data: { cableId: edge.cableId, lengthM: edge.lengthM },
-  }));
+  // Конвертация связей (ВАЖНО: правильные поля для React Flow)
+  const convertToReactFlowEdges = useCallback((edges: EditorEdge[]): Edge[] => {
+    return edges.map(edge => ({
+      id: edge.id,
+      source: edge.sourceNodeId,
+      target: edge.targetNodeId,
+      sourceHandle: edge.source,
+      targetHandle: edge.target,
+      label: `${edge.lengthM}м`,
+      style: { stroke: '#e54848', strokeWidth: 2 },
+    }));
+  }, []);
 
-  const [nodes, _, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
+  // Инициализация при монтировании
+  useEffect(() => {
+    const initialNodes = convertToReactFlowNodes(editorStore.nodes);
+    const initialEdges = convertToReactFlowEdges(editorStore.edges);
+    setNodes(initialNodes);
+    setEdges(initialEdges);
+  }, []);
+
+  // Синхронизация из store (при изменении количества узлов)
+  useEffect(() => {
+    if (editorStore.nodes.length !== nodes.length) {
+      setNodes(convertToReactFlowNodes(editorStore.nodes));
+    }
+  }, [editorStore.nodes.length]);
+
+  // Синхронизация связей из store
+  useEffect(() => {
+    setEdges(convertToReactFlowEdges(editorStore.edges));
+  }, [editorStore.edges.length, editorStore.edges]);
+
+  // Обработка изменений в React Flow
   const onNodesChangeHandler: OnNodesChange = useCallback((changes: NodeChange[]) => {
     onNodesChange(changes);
     changes.forEach((change) => {
@@ -76,15 +140,31 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({}) => {
     onEdgesChange(changes);
   }, [onEdgesChange]);
 
+  // Создание новой связи
   const onConnect = useCallback((connection: Connection) => {
-    const newEdge: Edge = {
-      ...connection,
-      id: `edge-${Date.now()}`,
-      label: "10м",
-      data: { lengthM: 10 },
-    } as Edge;
-    setEdges((eds) => addEdge(newEdge, eds));
-  }, [setEdges]);
+    if (!connection.source || !connection.target) return;
+    
+    const edgeId = `edge-${Date.now()}`;
+    
+    // Добавляем в React Flow
+    setEdges((eds) => addEdge({ ...connection, id: edgeId, style: { stroke: '#e54848', strokeWidth: 2 } }, eds));
+    
+    // Сохраняем в store
+    editorStore.addEdge({
+      id: edgeId,
+      source: connection.sourceHandle!,
+      target: connection.targetHandle!,
+      sourceNodeId: connection.source,
+      targetNodeId: connection.target,
+      lengthM: 10,
+      isActive: true,
+    });
+    
+    // Обновляем состояние портов
+    editorStore.updatePortConnection(connection.source, connection.sourceHandle!, true);
+    editorStore.updatePortConnection(connection.target, connection.targetHandle!, true);
+    
+  }, [editorStore, setEdges]);
 
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
     editorStore.selectNode(node.id);
@@ -98,11 +178,10 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({}) => {
     editorStore.clearSelection();
   }, [editorStore]);
 
+  // Центрирование
   useEffect(() => {
-    setTimeout(() => {
-      setViewport({ x: 0, y: 0, zoom: 1 });
-    }, 100);
-  }, []);
+    setTimeout(() => setCenter(0, 0, { zoom: 1, duration: 300 }), 100);
+  }, [setCenter]);
 
   return (
     <CanvasContainer>
@@ -118,48 +197,22 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({}) => {
           onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
           fitView
-          fitViewOptions={{ padding: 0.2, includeHiddenNodes: true }}
           snapToGrid
           snapGrid={[16, 16]}
           defaultViewport={{ x: 0, y: 0, zoom: 1 }}
         >
-          {/* Сетка из точек как фон */}
           <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#cbd5e1" />
-
-          {/* Оси и динамическая сетка */}
-          <AxesWithGrid
-            baseGridSize={50}
-            axisOpacity={0.8}
-            gridOpacity={0.4}
-            minStepPx={15}
-            maxStepPx={150}
-          />
-
+          <AxesWithGrid baseGridSize={50} axisOpacity={0.8} gridOpacity={0.4} minStepPx={15} maxStepPx={150} />
           <Controls />
           <MiniMap />
-
           <Panel position="top-left">
-            <div style={{ 
-              background: "white", 
-              padding: "4px 12px", 
-              borderRadius: "6px", 
-              fontSize: "12px",
-              border: "1px solid #e2e8f0",
-              boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-            }}>
-              🎯 Сетка | 📐 Zoom: {(useViewport().zoom * 100).toFixed(0)}%
+            <div style={{ background: "white", padding: "4px 12px", borderRadius: "6px", fontSize: "12px" }}>
+              🎯 Сетка | 📐 Zoom: {(viewport.zoom * 100).toFixed(0)}%
             </div>
           </Panel>
-
           <Panel position="top-right">
-            <div style={{ 
-              background: "white", 
-              padding: "4px 12px", 
-              borderRadius: "6px", 
-              fontSize: "12px",
-              border: "1px solid #e2e8f0",
-            }}>
-              📊 Устройств: {nodes.length} | 🔗 Связей: {edges.length}
+            <div style={{ background: "white", padding: "4px 12px", borderRadius: "6px", fontSize: "12px" }}>
+              📊 Устройств: {nodes.filter(n => n.type === 'device').length} | 🔗 Связей: {edges.length}
             </div>
           </Panel>
         </ReactFlow>

@@ -1,5 +1,3 @@
-import { NodeStatus } from "./schema";
-
 export interface NodePosition {
   x: number;
   y: number;
@@ -8,25 +6,7 @@ export interface NodePosition {
 export enum EditorNodes {
   DEVICE = "DEVICE",
   SUBSCHEMA = "SUBSCHEMA",
-};
-
-export interface EditorNode {
-  id: string;
-  type: EditorNodes;
-  deviceId?: string;
-  schemaId?: string;
-  name: string;
-  position: NodePosition;
-  customName?: string;
-};
-
-export interface EditorEdge {
-  id: string;
-  source: string;
-  target: string;
-  cableId?: string;
-  cableInfo?: CableInfo;
-  lengthM: number;
+  CABLE = "CABLE",
 };
 
 export enum EdgeStatus {
@@ -34,6 +14,22 @@ export enum EdgeStatus {
   DEGRADED = "DEGRADED",
   FAILED = "FAILED",
   OVERLOADED = "OVERLOADED",
+};
+
+export enum NodeStatus {
+  OPERATIONAL = "OPERATIONAL",
+  DEGRADED = "DEGRADED",
+  FAILED = "FAILED",
+  OVERHEATING = "OVERHEATING",
+  OFFLINE = "OFFLINE",
+};
+
+export enum PortType {
+  INPUT = "INPUT",
+  OUTPUT = "OUTPUT",
+  ETHERNET = "ETHERNET",
+  FIBER = "FIBER",
+  SERIAL = "SERIAL",
 };
 
 export interface CableInfo {
@@ -48,6 +44,17 @@ export interface CableInfo {
   icon?: string;
 };
 
+export interface CableNode extends EditorNode {
+  type: EditorNodes.CABLE;
+  sourcePortId: string;
+  targetPortId: string;
+  sourceNodeId: string;
+  targetNodeId: string;
+  cableId?: string;
+  lengthM: number;
+  bandwidthMbps?: number;
+};
+
 export interface EditorNode {
   id: string;
   type: EditorNodes;
@@ -56,22 +63,23 @@ export interface EditorNode {
   name: string;
   position: NodePosition;
   customName?: string;
-  
-  // Статус и состояние
   status?: NodeStatus;
   isEnabled?: boolean;
+  ports?: Port[];
   
-  // Промышленные факторы (смещения для конкретного узла)
-  temperatureOffset?: number;    // °C (добавка к глобальной температуре)
-  emiOffset?: number;            // dBm (добавка к глобальным помехам)
-  vibrationOffset?: number;      // Hz (добавка к глобальной вибрации)
-  dustOffset?: number;           // mg/m³ (добавка к запыленности)
+  // Для кабелей
+  lengthM?: number;
+  cableType?: string;
+  
+  // Промышленные факторы
+  temperatureOffset?: number;
+  emiOffset?: number;
+  vibrationOffset?: number;
+  dustOffset?: number;
   
   // Параметры устройства
   baseLatencyMs?: number;
   maxThroughputMbps?: number;
-  
-  // Визуальные параметры
   icon?: string;
   color?: string;
 };
@@ -80,6 +88,8 @@ export interface EditorEdge {
   id: string;
   source: string;
   target: string;
+  sourceNodeId: string; // ID узла-источника (добавляем)
+  targetNodeId: string; // ID узла-назначения (добавляем)
   cableId?: string;
   cableInfo?: CableInfo;
   lengthM: number;
@@ -92,4 +102,13 @@ export interface EditorEdge {
   // Статус соединения
   isActive?: boolean;
   status?: EdgeStatus;
+};
+
+export interface Port {
+  id: string;
+  name: string;
+  type: PortType;
+  speed?: number; // Мбит/с
+  isConnected: boolean;
+  position?: NodePosition; // Относительная позиция на ноде
 };

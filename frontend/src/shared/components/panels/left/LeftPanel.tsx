@@ -5,15 +5,14 @@ import {
   PanelTab,
   TabHeader,
   TabContent,
-  SearchContainer,
   CategorySection,
 } from "./LeftPanel.styles";
 import { CollapsibleSection } from "./components/CollapsibleSection/CollapsibleSection";
-import CatalogService from "../../../../services/catalog.service";
-import { cableTypeLabels, CableTypes, EditorNodes } from "../../../types";
-import { useStores } from "../../../../hooks";
 import { AddItemButton, ItemCard } from "./components";
-import { Input } from "../../Input";
+import CatalogService from "../../../../services/catalog.service";
+import { useStores } from "../../../../hooks";
+import { cableTypeLabels, CableTypes, EditorNodes, NodeStatus, PortType } from "../../../types";
+import { generateDefaultPorts, getDeviceIcon } from "../../Canvas/utils";
 import { AddCableModal, AddDeviceModal } from "../../../ui";
 
 const catalogService = new CatalogService();
@@ -30,14 +29,28 @@ const deviceTypeConfig = [
   { type: "WORKSTATION", icon: "💻", label: "Рабочие станции" },
 ];
 
+// Функция для получения позиции в центре видимой области
+const getRandomPosition = () => {
+  // Начальная позиция в центре с небольшим случайным смещением
+  const centerX = 400;
+  const centerY = 300;
+  const randomOffsetX = (Math.random() - 0.5) * 200;
+  const randomOffsetY = (Math.random() - 0.5) * 200;
+  return {
+    x: centerX + randomOffsetX,
+    y: centerY + randomOffsetY
+  };
+};
+
 const LeftPanel: React.FC = observer(() => {
   const { catalogStore, editorStore } = useStores();
   const [activeTab, setActiveTab] = useState<TabType>("catalog");
   const [showAddDeviceModal, setShowAddDeviceModal] = useState(false);
   const [showAddCableModal, setShowAddCableModal] = useState(false);
-  const [selectedDeviceType, setSelectedDeviceType] = useState<string>("ROUTER"); // Добавлено
+  const [selectedDeviceType, setSelectedDeviceType] = useState<string>("ROUTER");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Загрузка данных каталога
   useEffect(() => {
@@ -67,7 +80,6 @@ const LeftPanel: React.FC = observer(() => {
 
   const handleAddDevice = async (device: any) => {
     try {
-      // Добавляем тип устройства из выбранной категории
       const newDevice = await catalogService.addDevice({
         ...device,
         type: selectedDeviceType,
@@ -88,31 +100,74 @@ const LeftPanel: React.FC = observer(() => {
   };
 
   const handleItemClick = (item: any, sourceType: "device" | "cable" | "subschema") => {
+    console.log("=== handleItemClick called ===");
+    console.log("Item:", item);
+    console.log("SourceType:", sourceType);
+    
+    // Для кабелей - создаем ноду кабеля
     if (sourceType === "cable") {
-      console.log("Выбран кабель:", item.name);
+      const position = getRandomPosition();
+      
+      const newNode = {
+        id: `cable-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+        type: EditorNodes.CABLE,
+        name: item.name,
+        customName: item.name,
+        position: position,
+        icon: item.icon || "🔌",
+        lengthM: item.maxLengthM || 10,
+        cableType: item.type,
+        isEnabled: true,
+        status: NodeStatus.OPERATIONAL,
+        // Для кабеля будут порты left и right
+        ports: [
+          { id: "left", name: "Left", type: PortType.ETHERNET, isConnected: false },
+          { id: "right", name: "Right", type: PortType.ETHERNET, isConnected: false },
+        ],
+      };
+      
+      console.log("Adding cable node:", newNode);
+      editorStore.addNode(newNode);
       return;
     }
 
+    // Для устройств - создаем ноду устройства
     const nodeType = sourceType === "device" ? EditorNodes.DEVICE : EditorNodes.SUBSCHEMA;
+    const position = getRandomPosition();
+    
+    const ports = nodeType === EditorNodes.DEVICE ? generateDefaultPorts(item.type) : undefined;
+    const icon = nodeType === EditorNodes.DEVICE ? getDeviceIcon(item.type) : "📁";
 
     const newNode = {
-      id: `${sourceType}-${Date.now()}`,
+      id: `device-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
       type: nodeType,
       deviceId: sourceType === "device" ? item.id : undefined,
       schemaId: sourceType === "subschema" ? item.id : undefined,
       name: item.name,
       customName: item.name,
-      position: { x: Math.random() * 300 + 100, y: Math.random() * 300 + 100 },
+      position: position,
       baseLatencyMs: item.baseLatencyMs || 1,
       maxThroughputMbps: item.maxThroughputMbps || 100,
-      icon: item.icon,
+      icon: icon,
+      ports: ports,
       isEnabled: true,
+      status: NodeStatus.OPERATIONAL,
       temperatureOffset: 0,
       emiOffset: 0,
       vibrationOffset: 0,
       dustOffset: 0,
     };
+    
     editorStore.addNode(newNode);
+  };
+
+  // Фильтрация устройств по поисковому запросу
+  const filterDevices = (devices: any[]) => {
+    if (!searchQuery) return devices;
+    return devices.filter(d => 
+      d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      d.manufacturer?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
   };
 
   // Отображение загрузки
@@ -154,22 +209,22 @@ const LeftPanel: React.FC = observer(() => {
         </PanelTab>
       </TabHeader>
 
-      <SearchContainer>
+      {/* <SearchContainer>
         <Input
           placeholder="Поиск элемента..."
-          value={catalogStore.searchQuery}
-          onChange={(e) => catalogStore.setSearchQuery(e.target.value)}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
           fullWidth
         />
-      </SearchContainer>
+      </SearchContainer> */}
 
       <TabContent>
         {activeTab === "catalog" && (
           <>
             {/* Устройства */}
-            <CollapsibleSection title="УСТРОЙСТВА" icon="🖥️" defaultExpanded={true}>
+            <CollapsibleSection title="УСТРОЙСТВА" icon="🖥️" defaultExpanded={false}>
               {deviceTypeConfig.map(({ type, icon, label }) => {
-                const devices = catalogStore.devices.filter(d => d.type === type);
+                const devices = filterDevices(catalogStore.devices.filter(d => d.type === type));
                 if (devices.length === 0) return null;
                 return (
                   <CollapsibleSection
@@ -207,9 +262,14 @@ const LeftPanel: React.FC = observer(() => {
             </CollapsibleSection>
 
             {/* Кабели */}
-            <CollapsibleSection title="КАБЕЛИ" icon="🔌" defaultExpanded={true}>
+            <CollapsibleSection title="КАБЕЛИ" icon="🔌" defaultExpanded={false}>
               {Object.values(CableTypes).map((cableType) => {
-                const cables = catalogStore.groupedCables[cableType];
+                let cables = catalogStore.groupedCables[cableType];
+                if (searchQuery) {
+                  cables = cables?.filter(c => 
+                    c.name.toLowerCase().includes(searchQuery.toLowerCase())
+                  );
+                }
                 if (!cables || cables.length === 0) return null;
                 return (
                   <CollapsibleSection 
@@ -290,8 +350,8 @@ const LeftPanel: React.FC = observer(() => {
             <CollapsibleSection title="СВЯЗИ" icon="🔗" defaultExpanded={true}>
               <CategorySection>
                 {editorStore.edges.map((edge) => {
-                  const sourceNode = editorStore.getNodeById(edge.source);
-                  const targetNode = editorStore.getNodeById(edge.target);
+                  const sourceNode = editorStore.getNodeById(edge.sourceNodeId);
+                  const targetNode = editorStore.getNodeById(edge.targetNodeId);
                   return (
                     <ItemCard
                       key={edge.id}

@@ -15,6 +15,7 @@ import { Button, LeftPanel, NetworkCanvas, RightPanel } from "../../shared";
 import EditorService from "../../services/editor.service";
 import SimulationService from "../../services/simulation.service";
 import CatalogService from "../../services/catalog.service";
+import { generateDefaultPorts, getDeviceIcon } from "../../shared/components/Canvas/utils";
 
 const editorService = new EditorService();
 const simulationService = new SimulationService();
@@ -32,7 +33,6 @@ export const SchemaEditorPage: React.FC = observer(() => {
     const loadCatalog = async () => {
       catalogStore.setLoading(true);
       try {
-        // TODO: Раскомментировать когда бэк готов
         const [devices, cables, publicSchemas] = await Promise.all([
           catalogService.getDevices(),
           catalogService.getCables(),
@@ -49,9 +49,7 @@ export const SchemaEditorPage: React.FC = observer(() => {
     };
     loadCatalog();
   }, []);
-
-  // Загрузка схемы (из бэка или черновика)
-  useEffect(() => {
+useEffect(() => {
     const loadSchema = async () => {
       if (!id || id === "new") {
         // Новая схема - создаем черновик
@@ -78,6 +76,8 @@ export const SchemaEditorPage: React.FC = observer(() => {
         editorStore.setLoading(true);
         try {
           const fullSchema = await editorService.getSchemaFull(id);
+          
+          // Конвертируем узлы с портами
           const nodes = fullSchema.nodes.map(node => ({
             id: node.id,
             type: node.nodeType,
@@ -90,12 +90,19 @@ export const SchemaEditorPage: React.FC = observer(() => {
             emiOffset: 0,
             vibrationOffset: 0,
             dustOffset: 0,
+            // Генерируем порты для устройств
+            ports: node.device ? generateDefaultPorts(node.device.type) : undefined,
+            icon: node.device?.type ? getDeviceIcon(node.device.type) : "📡",
           }));
+
+          // Конвертируем связи с новыми полями
           const edges = fullSchema.connections.map(conn => ({
             id: conn.id,
-            source: conn.sourceNode.id,
-            target: conn.targetNode.id,
-            cableId: conn.cable.id,
+            source: conn.sourceNode.id,      // ID порта источника
+            target: conn.targetNode.id,      // ID порта назначения
+            sourceNodeId: conn.sourceNode.id, // ID узла-источника (добавляем)
+            targetNodeId: conn.targetNode.id, // ID узла-назначения (добавляем)
+            cableId: conn.cable?.id,
             lengthM: conn.lengthM,
             isActive: true,
           }));

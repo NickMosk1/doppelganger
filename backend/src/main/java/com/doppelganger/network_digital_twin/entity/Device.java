@@ -49,6 +49,17 @@ public class Device extends BaseEntity {
 
     private Boolean isActive = true;
 
+    @Column(nullable = false)
+    private Boolean isCustom = false;
+
+    public Boolean getIsCustom() {
+        return isCustom;
+    }
+
+    public void setIsCustom(Boolean isCustom) {
+        this.isCustom = isCustom;
+    }
+
     public enum DeviceType {
         ROUTER("Маршрутизатор"),
         SWITCH("Коммутатор"),

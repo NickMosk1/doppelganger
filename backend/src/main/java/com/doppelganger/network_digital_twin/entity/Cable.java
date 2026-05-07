@@ -47,6 +47,18 @@ public class Cable extends BaseEntity {
     private String description;
     
     private Boolean isActive = true;
+
+    @Column(nullable = false)
+    private Boolean isCustom = false;  // false - системный кабель, true - созданный пользователем
+
+    // Добавьте геттер и сеттер
+    public Boolean getIsCustom() {
+        return isCustom;
+    }
+
+    public void setIsCustom(Boolean isCustom) {
+        this.isCustom = isCustom;
+    }
     
     public enum CableType {
         COPPER("Медь (UTP/FTP)"),

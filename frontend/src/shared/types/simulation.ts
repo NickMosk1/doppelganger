@@ -1,4 +1,4 @@
-import { NodeStatus } from "./schema";
+import { NodeStatus } from "./editor";
 
 export interface GlobalFactors {
   temperature: number;

@@ -1,5 +1,5 @@
 import { makeAutoObservable } from "mobx";
-import { EditorEdge, EditorNode, EditorNodes, NodePosition, NodeStatus } from "../shared";
+import { EditorEdge, EditorNode, EditorNodes, NodePosition, NodeStatus, Port } from "../shared";
 import { Nullable } from "../utils";
 
 class EditorStore {
@@ -287,6 +287,53 @@ class EditorStore {
 
   getEdgesByNode(nodeId: string): EditorEdge[] {
     return this._edges.filter(e => e.source === nodeId || e.target === nodeId);
+  }
+
+  get initialEdges(): EditorEdge[] {
+    return this._edges;
+  }
+
+  // Метод для обновления состояния порта
+  updatePortConnection(nodeId: string, portId: string, isConnected: boolean) {
+    console.log("updatePortConnection:", nodeId, portId, isConnected);
+    const node = this._nodes.find(n => n.id === nodeId);
+    if (node && node.ports) {
+      const port = node.ports.find(p => p.id === portId);
+      if (port) {
+        port.isConnected = isConnected;
+        console.log(`Port ${portId} on node ${nodeId} set to ${isConnected}`);
+      } else {
+        console.log(`Port ${portId} not found on node ${nodeId}`);
+      }
+    } else {
+      console.log(`Node ${nodeId} not found or has no ports`);
+    }
+  }
+
+  // Метод для добавления портов к устройству
+  addPortsToNode(nodeId: string, ports: Port[]) {
+    const node = this._nodes.find(n => n.id === nodeId);
+    if (node) {
+      node.ports = ports;
+    }
+  }
+
+  // Метод для обновления кабеля
+  updateCableLength(cableId: string, lengthM: number) {
+    const cable = this._edges.find(e => e.id === cableId);
+    if (cable) {
+      cable.lengthM = lengthM;
+    }
+  }
+
+  // Метод для получения всех связей узла
+  getNodeConnections(nodeId: string): EditorEdge[] {
+    return this._edges.filter(e => e.sourceNodeId === nodeId || e.targetNodeId === nodeId);
+  }
+
+  // Метод для получения связей по порту
+  getPortConnections(portId: string): EditorEdge[] {
+    return this._edges.filter(e => e.source === portId || e.target === portId);
   }
 }
 

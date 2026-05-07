@@ -17,13 +17,15 @@ class CatalogService {
     return response.data;
   }
 
-  async addDevice(device: Omit<CatalogDevice, 'id'>): Promise<CatalogDevice> {
-    const response = await api.post<CatalogDevice>('/devices', device);
+  async addDevice(device: any): Promise<CatalogDevice> {
+    const { id, icon, ...deviceToSend } = device;
+    const response = await api.post<CatalogDevice>('/devices', deviceToSend);
     return response.data;
   }
 
-  async addCable(cable: Omit<CatalogCable, 'id'>): Promise<CatalogCable> {
-    const response = await api.post<CatalogCable>('/cables', cable);
+  async addCable(cable: any): Promise<CatalogCable> {
+    const { id, icon, ...cableToSend } = cable;
+    const response = await api.post<CatalogCable>('/cables', cableToSend);
     return response.data;
   }
 
