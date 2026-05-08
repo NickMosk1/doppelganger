@@ -53,14 +53,6 @@ export const MainContent = styled.div`
   > * {
     background: ${colors.white};
   }
-
-  > *:first-child {
-    border-radius: 0 8px 8px 0;
-  }
-
-  > *:last-child {
-    border-radius: 8px 0 0 8px;
-  }
 `;
 
 interface DraftIndicatorProps {

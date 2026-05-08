@@ -5,7 +5,6 @@ export const CanvasContainer = styled.div`
   position: relative;
   height: 100%;
   background: #f8fafc;
-  border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 `;

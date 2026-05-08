@@ -202,17 +202,17 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
           defaultViewport={{ x: 0, y: 0, zoom: 1 }}
         >
           <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#cbd5e1" />
-          <AxesWithGrid baseGridSize={50} axisOpacity={0.8} gridOpacity={0.4} minStepPx={15} maxStepPx={150} />
-          <Controls />
+          <AxesWithGrid baseGridSize={50} axisOpacity={0.3} gridOpacity={0.4} minStepPx={15} maxStepPx={150} />
+          <Controls showInteractive={false} />
           <MiniMap />
           <Panel position="top-left">
             <div style={{ background: "white", padding: "4px 12px", borderRadius: "6px", fontSize: "12px" }}>
-              🎯 Сетка | 📐 Zoom: {(viewport.zoom * 100).toFixed(0)}%
+              Zoom: {(viewport.zoom * 100).toFixed(0)}%
             </div>
           </Panel>
           <Panel position="top-right">
             <div style={{ background: "white", padding: "4px 12px", borderRadius: "6px", fontSize: "12px" }}>
-              📊 Устройств: {nodes.filter(n => n.type === 'device').length} | 🔗 Связей: {edges.length}
+              Устройств: {nodes.filter(n => n.type === 'device').length} | Связей: {edges.length}
             </div>
           </Panel>
         </ReactFlow>

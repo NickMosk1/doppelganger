@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { observer } from "mobx-react-lite";
 import {
   LeftPanelContainer,
+  ResizeHandle,
   PanelTab,
   TabHeader,
   TabContent,
@@ -9,17 +10,17 @@ import {
 } from "./LeftPanel.styles";
 import { CollapsibleSection } from "./components/CollapsibleSection/CollapsibleSection";
 import { AddItemButton, ItemCard } from "./components";
-import CatalogService from "../../../../services/catalog.service";
-import { useStores } from "../../../../hooks";
 import { cableTypeLabels, CableTypes, EditorNodes, NodeStatus, PortType } from "../../../types";
 import { generateDefaultPorts, getDeviceIcon } from "../../Canvas/utils";
 import { AddCableModal, AddDeviceModal } from "../../../ui";
+import { useResizePanel } from "./hooks/useResizePanel";
+import CatalogService from "../../../../services/catalog.service";
+import { useStores } from "../../../../hooks";
 
 const catalogService = new CatalogService();
 
 type TabType = "catalog" | "explorer";
 
-// Конфигурация типов устройств
 const deviceTypeConfig = [
   { type: "ROUTER", icon: "🌐", label: "Маршрутизаторы" },
   { type: "SWITCH", icon: "🔌", label: "Коммутаторы" },
@@ -29,9 +30,7 @@ const deviceTypeConfig = [
   { type: "WORKSTATION", icon: "💻", label: "Рабочие станции" },
 ];
 
-// Функция для получения позиции в центре видимой области
 const getRandomPosition = () => {
-  // Начальная позиция в центре с небольшим случайным смещением
   const centerX = 400;
   const centerY = 300;
   const randomOffsetX = (Math.random() - 0.5) * 200;
@@ -44,6 +43,7 @@ const getRandomPosition = () => {
 
 const LeftPanel: React.FC = observer(() => {
   const { catalogStore, editorStore } = useStores();
+  const { width, isResizing, startResize } = useResizePanel(280, 200, 450);
   const [activeTab, setActiveTab] = useState<TabType>("catalog");
   const [showAddDeviceModal, setShowAddDeviceModal] = useState(false);
   const [showAddCableModal, setShowAddCableModal] = useState(false);
@@ -51,6 +51,7 @@ const LeftPanel: React.FC = observer(() => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const resizeHandleRef = useRef<HTMLDivElement>(null);
 
   // Загрузка данных каталога
   useEffect(() => {
@@ -104,7 +105,6 @@ const LeftPanel: React.FC = observer(() => {
     console.log("Item:", item);
     console.log("SourceType:", sourceType);
     
-    // Для кабелей - создаем ноду кабеля
     if (sourceType === "cable") {
       const position = getRandomPosition();
       
@@ -119,7 +119,6 @@ const LeftPanel: React.FC = observer(() => {
         cableType: item.type,
         isEnabled: true,
         status: NodeStatus.OPERATIONAL,
-        // Для кабеля будут порты left и right
         ports: [
           { id: "left", name: "Left", type: PortType.ETHERNET, isConnected: false },
           { id: "right", name: "Right", type: PortType.ETHERNET, isConnected: false },
@@ -131,7 +130,6 @@ const LeftPanel: React.FC = observer(() => {
       return;
     }
 
-    // Для устройств - создаем ноду устройства
     const nodeType = sourceType === "device" ? EditorNodes.DEVICE : EditorNodes.SUBSCHEMA;
     const position = getRandomPosition();
     
@@ -161,7 +159,6 @@ const LeftPanel: React.FC = observer(() => {
     editorStore.addNode(newNode);
   };
 
-  // Фильтрация устройств по поисковому запросу
   const filterDevices = (devices: any[]) => {
     if (!searchQuery) return devices;
     return devices.filter(d => 
@@ -170,10 +167,15 @@ const LeftPanel: React.FC = observer(() => {
     );
   };
 
-  // Отображение загрузки
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    startResize(e);
+  }, [startResize]);
+
   if (isLoading) {
     return (
-      <LeftPanelContainer>
+      <LeftPanelContainer $width={width} $isResizing={isResizing}>
         <div style={{ padding: "40px", textAlign: "center", color: "#999" }}>
           Загрузка каталога...
         </div>
@@ -181,10 +183,9 @@ const LeftPanel: React.FC = observer(() => {
     );
   }
 
-  // Отображение ошибки
   if (error) {
     return (
-      <LeftPanelContainer>
+      <LeftPanelContainer $width={width} $isResizing={isResizing}>
         <div style={{ padding: "40px", textAlign: "center", color: "#ef4444" }}>
           {error}
           <button 
@@ -199,29 +200,26 @@ const LeftPanel: React.FC = observer(() => {
   }
 
   return (
-    <LeftPanelContainer>
+    <LeftPanelContainer style={{ width: `${width}px` }} $isResizing={isResizing}>
+      <ResizeHandle 
+        ref={resizeHandleRef}
+        onMouseDown={handleMouseDown}
+        onMouseEnter={() => !isResizing && (document.body.style.cursor = 'ew-resize')}
+        onMouseLeave={() => !isResizing && (document.body.style.cursor = '')}
+      />
+      
       <TabHeader>
         <PanelTab active={activeTab === "catalog"} onClick={() => setActiveTab("catalog")}>
-          📚 Каталог
+          Каталог
         </PanelTab>
         <PanelTab active={activeTab === "explorer"} onClick={() => setActiveTab("explorer")}>
-          📁 Проводник
+          Проводник
         </PanelTab>
       </TabHeader>
-
-      {/* <SearchContainer>
-        <Input
-          placeholder="Поиск элемента..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          fullWidth
-        />
-      </SearchContainer> */}
 
       <TabContent>
         {activeTab === "catalog" && (
           <>
-            {/* Устройства */}
             <CollapsibleSection title="УСТРОЙСТВА" icon="🖥️" defaultExpanded={false}>
               {deviceTypeConfig.map(({ type, icon, label }) => {
                 const devices = filterDevices(catalogStore.devices.filter(d => d.type === type));
@@ -261,7 +259,6 @@ const LeftPanel: React.FC = observer(() => {
               })}
             </CollapsibleSection>
 
-            {/* Кабели */}
             <CollapsibleSection title="КАБЕЛИ" icon="🔌" defaultExpanded={false}>
               {Object.values(CableTypes).map((cableType) => {
                 let cables = catalogStore.groupedCables[cableType];
@@ -303,7 +300,6 @@ const LeftPanel: React.FC = observer(() => {
               })}
             </CollapsibleSection>
 
-            {/* Публичные схемы */}
             <CollapsibleSection title="ПУБЛИЧНЫЕ СХЕМЫ" icon="🏪" defaultExpanded={false}>
               <CategorySection>
                 {catalogStore.publicSchemas.map((schema) => (

@@ -180,10 +180,6 @@ class EditorStore {
   }
 
   // ============ EDGE METHODS ============
-  
-  addEdge(edge: EditorEdge) {
-    this._edges.push(edge);
-  }
 
   updateEdge(edgeId: string, data: Partial<EditorEdge>) {
     const edge = this._edges.find(e => e.id === edgeId);
@@ -334,6 +330,38 @@ class EditorStore {
   // Метод для получения связей по порту
   getPortConnections(portId: string): EditorEdge[] {
     return this._edges.filter(e => e.source === portId || e.target === portId);
+  }
+
+  // Добавьте метод для проверки, занят ли порт
+  isPortConnected(nodeId: string, portId: string): boolean {
+    const node = this._nodes.find(n => n.id === nodeId);
+    if (!node || !node.ports) return false;
+    
+    const port = node.ports.find(p => p.id === portId);
+    return port?.isConnected || false;
+  }
+
+  // Обновите addEdge с проверкой
+  addEdge(edge: EditorEdge) {
+    // Проверяем, не заняты ли уже порты
+    const sourcePortOccupied = this.isPortConnected(edge.sourceNodeId, edge.source);
+    const targetPortOccupied = this.isPortConnected(edge.targetNodeId, edge.target);
+    
+    if (sourcePortOccupied || targetPortOccupied) {
+      console.warn("Port already connected!");
+      return false;
+    }
+    
+    this._edges.push(edge);
+    return true;
+  }
+
+  // Метод для получения связей по порту
+  getEdgeByPort(nodeId: string, portId: string): EditorEdge | undefined {
+    return this._edges.find(
+      e => (e.sourceNodeId === nodeId && e.source === portId) ||
+          (e.targetNodeId === nodeId && e.target === portId)
+    );
   }
 }
 

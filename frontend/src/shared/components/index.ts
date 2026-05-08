@@ -4,3 +4,4 @@ export * from "./Header";
 export * from "./AppLayout";
 export * from "./Canvas";
 export * from "./panels";
+export * from "./Dialog";

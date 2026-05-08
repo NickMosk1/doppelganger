@@ -144,7 +144,7 @@ const DeviceNode: React.FC<DeviceNodeProps> = observer(({ data, selected }) => {
 
       <PortsContainer>
         <PortsColumn>
-          {leftPorts.map((port, idx) => (
+          {leftPorts.map((port) => (
             <PortItem
               key={port.id}
               isConnected={port.isConnected}
@@ -177,7 +177,7 @@ const DeviceNode: React.FC<DeviceNodeProps> = observer(({ data, selected }) => {
         </PortsColumn>
 
         <PortsColumn>
-          {rightPorts.map((port, idx) => (
+          {rightPorts.map((port) => (
             <PortItem
               key={port.id}
               isConnected={port.isConnected}

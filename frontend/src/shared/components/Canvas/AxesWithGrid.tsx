@@ -24,7 +24,7 @@ interface AxesWithGridProps {
 
 const AxesWithGrid: React.FC<AxesWithGridProps> = ({ 
   baseGridSize = 50,
-  axisOpacity = 0.8,
+  axisOpacity = 0.4,
   gridOpacity = 0.4,
   minStepPx = 10,
   maxStepPx = 200,

@@ -285,32 +285,32 @@ useEffect(() => {
           </SchemaName>
           {draftStore.hasLocalChanges && (
             <DraftIndicator>
-              📝 Черновик
+              Черновик
             </DraftIndicator>
           )}
           {draftStore.lastValidationTime && draftStore.validationErrors.length === 0 && (
             <DraftIndicator $isValid>
-              ✅ Валидация: {new Date(draftStore.lastValidationTime).toLocaleTimeString()}
+              Валидация: {new Date(draftStore.lastValidationTime).toLocaleTimeString()}
             </DraftIndicator>
           )}
           {draftStore.lastValidationTime && draftStore.validationErrors.length > 0 && (
             <DraftIndicator style={{ background: "#ef444420", color: "#ef4444", borderColor: "#ef4444" }}>
-              ⚠️ {draftStore.validationErrors.length} ошибок
+              {draftStore.validationErrors.length} ошибок
             </DraftIndicator>
           )}
         </div>
         <ActionButtons>
           <Button variant="outline" onClick={handleValidate}>
-            ✓ Валидация
+            Валидация
           </Button>
           <Button variant="outline" onClick={handleRunSimulation} disabled={simulationStore.isRunning}>
-            {simulationStore.isRunning ? "⏳ Симуляция..." : "▶ Симуляция"}
+            {simulationStore.isRunning ? "Симуляция..." : "Симуляция"}
           </Button>
           <Button variant="outline" onClick={handleShowHistory}>
-            📊 История
+            История
           </Button>
           <Button onClick={handleSave} loading={isSaving}>
-            💾 Сохранить
+            Сохранить
           </Button>
         </ActionButtons>
       </HeaderActions>

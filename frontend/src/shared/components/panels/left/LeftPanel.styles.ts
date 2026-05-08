@@ -1,8 +1,9 @@
 import styled from 'styled-components';
 import { colors } from '../../../theme';
 
-export const LeftPanelContainer = styled.aside`
-  width: 320px;
+export const LeftPanelContainer = styled.aside<{ $isResizing?: boolean; $width?: number; }>`
+  position: relative;
+  width: ${props => props.$width || 320}px;
   height: 100%;
   background: ${colors.white};
   border-right: 1px solid ${colors.border};
@@ -11,6 +12,26 @@ export const LeftPanelContainer = styled.aside`
   overflow: hidden;
   flex-shrink: 0;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+  user-select: ${props => props.$isResizing ? 'none' : 'auto'};
+`;
+
+export const ResizeHandle = styled.div`
+  position: absolute;
+  right: -6px;
+  top: 0;
+  width: 12px;
+  height: 100%;
+  cursor: ew-resize;
+  z-index: 1000;
+  transition: background 0.15s ease;
+  
+  &:hover {
+    background: ${colors.primary}20;
+  }
+  
+  &:active {
+    background: ${colors.primary}40;
+  }
 `;
 
 export const TabHeader = styled.div`
@@ -73,8 +94,9 @@ export const TabContent = styled.div`
 
 export const CategorySection = styled.div`
   display: flex;
-  margin: 5px 10px;
-  gap: 5px;
+  flex-wrap: wrap;
+  margin: 5px 0;
+  gap: 8px;
 `;
 
 export const CategoryTitle = styled.div`
