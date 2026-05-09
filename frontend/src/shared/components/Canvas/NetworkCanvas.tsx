@@ -48,6 +48,19 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
+  // Функция обновления канваса
+  const refreshCanvas = useCallback(() => {
+    console.log("🔄 Refreshing canvas...");
+    setNodes(convertToReactFlowNodes(editorStore.nodes));
+    setEdges(convertToReactFlowEdges(editorStore.edges));
+  }, [editorStore.nodes, editorStore.edges]);
+
+  // Следим за выделением и обновляем канвас
+  useEffect(() => {
+    console.log("🎯 Selection changed, refreshing canvas");
+    refreshCanvas();
+  }, [editorStore.selectedNodeId, editorStore.selectedEdgeId, refreshCanvas]);
+
   // Добавляем forceUpdate счетчик
   const [updateTrigger, setUpdateTrigger] = useState(0);
   
@@ -121,14 +134,18 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
     }
   }, [editorStore, draftStore, forceCanvasUpdate]);
 
-  // Конвертация узлов
   const convertToReactFlowNodes = useCallback((storeNodes: EditorNode[]): Node[] => {
+    console.log("Converting nodes, selectedNodeId:", editorStore.selectedNodeId);
+    
     return storeNodes.map(node => {
+      const isSelected = editorStore.selectedNodeId === node.id;
+      
       if (node.type === EditorNodes.CABLE) {
         return {
           id: node.id,
           type: "cable",
           position: node.position,
+          selected: isSelected,
           data: {
             id: node.id,
             name: node.customName || node.name,
@@ -143,6 +160,7 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
           id: node.id,
           type: "device",
           position: node.position,
+          selected: isSelected,
           data: {
             id: node.id,
             label: node.customName || node.name,
@@ -159,6 +177,7 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
         id: node.id,
         type: "subschema",
         position: node.position,
+        selected: isSelected,
         data: {
           id: node.id,
           label: node.customName || node.name,
@@ -166,20 +185,28 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
         },
       };
     });
-  }, []);
+  }, [editorStore.nodes, editorStore.selectedNodeId]); // ← зависимость от selectedNodeId
 
-  // Конвертация связей
+  // При конвертации ребер, добавьте selected для жирности
   const convertToReactFlowEdges = useCallback((storeEdges: EditorEdge[]): Edge[] => {
-    return storeEdges.map(edge => ({
-      id: edge.id,
-      source: edge.sourceNodeId,
-      target: edge.targetNodeId,
-      sourceHandle: edge.source,
-      targetHandle: edge.target,
-      label: `${edge.lengthM}м`,
-      style: { stroke: '#e54848', strokeWidth: 2 },
-    }));
-  }, []);
+    return storeEdges.map(edge => {
+      const isSelected = editorStore.selectedEdgeId === edge.id;
+      
+      return {
+        id: edge.id,
+        source: edge.sourceNodeId,
+        target: edge.targetNodeId,
+        sourceHandle: edge.source,
+        targetHandle: edge.target,
+        label: `${edge.lengthM}м`,
+        selected: isSelected,  // ← убедитесь, что selected передается
+        style: { 
+          stroke: isSelected ? '#e54848' : '#94a3b8', 
+          strokeWidth: isSelected ? 3 : 2,
+        },
+      };
+    });
+  }, [editorStore.edges, editorStore.selectedEdgeId]);
 
   // MobX reaction для отслеживания изменений узлов
   useEffect(() => {
@@ -334,7 +361,7 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
           </Panel>
           <Panel position="top-right">
             <div style={{ background: "white", padding: "4px 12px", borderRadius: "6px", fontSize: "12px" }}>
-              📊 Устройств: {nodes.filter(n => n.type === 'device').length} | 🔗 Связей: {edges.length}
+              📊 Устройств: {nodes.filter(n => n.type === 'device').length} | 🔌 Кабелей: {nodes.filter(n => n.type === 'cable').length} | 🔗 Связей: {edges.length}
             </div>
           </Panel>
         </ReactFlow>

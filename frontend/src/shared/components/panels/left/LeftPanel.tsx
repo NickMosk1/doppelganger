@@ -332,12 +332,37 @@ const LeftPanel: React.FC = observer(() => {
                       icon={node.icon || "🖥️"}
                       description={`ID: ${node.id.slice(0, 8)}...`}
                       badge="Устройство"
+                      isSelected={editorStore.selectedNodeId === node.id}
                       onClick={() => editorStore.selectNode(node.id)}
                     />
                   ))}
                 {editorStore.nodes.filter(n => n.type === EditorNodes.DEVICE).length === 0 && (
                   <div style={{ padding: "16px", textAlign: "center", color: "#999", fontSize: "12px" }}>
                     Нет устройств
+                  </div>
+                )}
+              </CategorySection>
+            </CollapsibleSection>
+
+            <CollapsibleSection title="КАБЕЛИ" icon="🔌" defaultExpanded={true}>
+              <CategorySection>
+                {editorStore.nodes
+                  .filter(node => node.type === EditorNodes.CABLE)
+                  .map((cable) => (
+                    <ItemCard
+                      key={cable.id}
+                      id={cable.id}
+                      name={cable.customName || cable.name}
+                      icon={cable.icon || "🔌"}
+                      description={`Тип: ${cable.cableType || "Ethernet"}, Длина: ${cable.lengthM || 10}м`}
+                      badge="Кабель"
+                      isSelected={editorStore.selectedNodeId === cable.id}
+                      onClick={() => editorStore.selectNode(cable.id)}
+                    />
+                  ))}
+                {editorStore.nodes.filter(n => n.type === EditorNodes.CABLE).length === 0 && (
+                  <div style={{ padding: "16px", textAlign: "center", color: "#999", fontSize: "12px" }}>
+                    Нет кабелей
                   </div>
                 )}
               </CategorySection>
@@ -356,6 +381,7 @@ const LeftPanel: React.FC = observer(() => {
                       icon="🔗"
                       description={`Длина: ${edge.lengthM}м`}
                       badge="Связь"
+                      isSelected={editorStore.selectedEdgeId === edge.id}  // ← добавляем
                       onClick={() => editorStore.selectEdge(edge.id)}
                     />
                   );

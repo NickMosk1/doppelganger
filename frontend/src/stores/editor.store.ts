@@ -193,18 +193,6 @@ class EditorStore {
   }
 
   // ============ SELECTION METHODS ============
-  
-  selectNode(nodeId: Nullable<string>) {
-    this._selectedNodeId = nodeId;
-    this._selectedEdgeId = null;
-    this._selectedCableId = null;
-  }
-
-  selectEdge(edgeId: Nullable<string>) {
-    this._selectedEdgeId = edgeId;
-    this._selectedNodeId = null;
-    this._selectedCableId = null;
-  }
 
   selectCable(cableId: Nullable<string>) {
     this._selectedCableId = cableId;
@@ -437,6 +425,34 @@ class EditorStore {
     if (this._selectedNodeId === nodeId) {
       this._selectedNodeId = null;
     }
+  }
+
+  // Геттер для проверки выделен ли узел
+  isNodeSelected(nodeId: string): boolean {
+    return this._selectedNodeId === nodeId;
+  }
+
+  // Геттер для проверки выделено ли ребро
+  isEdgeSelected(edgeId: string): boolean {
+    return this._selectedEdgeId === edgeId;
+  }
+
+  selectNode(nodeId: string | null) {
+    console.log("🎯 selectNode called:", nodeId);
+    console.log("Previous selectedNodeId:", this._selectedNodeId);
+    this._selectedNodeId = nodeId;
+    this._selectedEdgeId = null;
+    this._selectedCableId = null;
+    console.log("New selectedNodeId:", this._selectedNodeId);
+  }
+
+  selectEdge(edgeId: string | null) {
+    console.log("🎯 selectEdge called:", edgeId);
+    console.log("Previous selectedEdgeId:", this._selectedEdgeId);
+    this._selectedEdgeId = edgeId;
+    this._selectedNodeId = null;
+    this._selectedCableId = null;
+    console.log("New selectedEdgeId:", this._selectedEdgeId);
   }
 }
 

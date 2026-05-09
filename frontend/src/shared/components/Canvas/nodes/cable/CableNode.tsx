@@ -1,13 +1,11 @@
-// src/shared/components/Canvas/nodes/CableNode.tsx
-import React from "react";
 import { Handle, Position } from "reactflow";
 import { observer } from "mobx-react-lite";
 import styled from "styled-components";
 
-const CableNodeContainer = styled.div<{ selected: boolean }>`
+const CableNodeContainer = styled.div<{ $selected: boolean }>`
   padding: 4px 12px;
   background: #f8fafc;
-  border: 2px solid ${props => props.selected ? '#e54848' : '#94a3b8'};
+  border: 2px solid ${props => props.$selected ? '#e54848' : '#94a3b8'};
   border-radius: 20px;
   min-width: 100px;
   cursor: pointer;
@@ -51,7 +49,7 @@ interface CableNodeProps {
 
 const CableNode: React.FC<CableNodeProps> = observer(({ data, selected }) => {
   return (
-    <CableNodeContainer selected={selected}>
+    <CableNodeContainer $selected={selected}>
       {/* Левый порт (вход) */}
       <Handle
         type="target"

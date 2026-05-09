@@ -34,15 +34,15 @@ export const CardTooltip = styled.div`
   }
 `;
 
-export const CardContainer = styled.div`
+export const CardContainer = styled.div<{ $isSelected?: boolean }>`
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 8px 4px;
-  background: ${colors.white};
-  border: 1px solid ${colors.border};
+  background: ${props => props.$isSelected ? colors.primaryLight + '20' : colors.white};
+  border: 2px solid ${props => props.$isSelected ? colors.primary : colors.border};
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -50,12 +50,18 @@ export const CardContainer = styled.div`
   text-align: center;
 
   &:hover {
+    transform: translateY(-2px);
     box-shadow: 0 4px 12px ${colors.shadow};
     border-color: ${colors.primaryLight};
+    
     div[data-tooltip] {
       opacity: 1;
       visibility: visible;
     }
+  }
+
+  &:active {
+    transform: translateY(0);
   }
 `;
 

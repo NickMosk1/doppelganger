@@ -33,10 +33,16 @@ export const CanvasWrapper = styled.div`
   .react-flow__edge-path {
     stroke: #94a3b8;
     stroke-width: 2;
+    transition: all 0.2s ease;
   }
 
   .react-flow__edge-text {
     font-size: 10px;
     fill: #64748b;
+  }
+
+  .react-flow__edge.selected .react-flow__edge-path {
+    stroke: #e54848 !important;
+    stroke-width: 3 !important;
   }
 `;

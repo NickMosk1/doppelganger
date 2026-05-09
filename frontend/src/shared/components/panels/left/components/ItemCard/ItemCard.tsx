@@ -8,6 +8,7 @@ interface ItemCardProps {
   badge?: string;
   stats?: string;
   isCustom?: boolean;
+  isSelected?: boolean;
   onClick: () => void;
 }
 
@@ -18,10 +19,11 @@ const ItemCard: React.FC<ItemCardProps> = ({
   badge,
   stats,
   isCustom,
+  isSelected,
   onClick,
 }) => {
   return (
-    <CardContainer onClick={onClick} data-tooltip={description}>
+    <CardContainer onClick={onClick} data-tooltip={description} $isSelected={isSelected}>
       <CardIcon>{icon}</CardIcon>
       <CardName>{name}</CardName>
       {badge && <CardBadge $isCustom={isCustom}>{badge}</CardBadge>}

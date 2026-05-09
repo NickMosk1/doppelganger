@@ -1,12 +1,11 @@
 import styled from "styled-components";
 
-export const DeviceNodeContainer = styled.div<{ selected: boolean }>`
-  padding: 12px 16px;
+export const DeviceNodeContainer = styled.div<{ $selected: boolean }>`
+  padding: 12px;
   background: white;
-  border: 2px solid ${props => props.selected ? '#e54848' : '#e2e8f0'};
+  border: 2px solid ${props => props.$selected ? '#e54848' : '#e2e8f0'};
   border-radius: 12px;
-  min-width: 140px;
-  text-align: center;
+  min-width: 160px;
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
