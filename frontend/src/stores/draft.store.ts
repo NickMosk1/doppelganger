@@ -71,11 +71,14 @@ class DraftStore {
   }
 
   updateDraft(schemaId: string, updates: Partial<DraftState>) {
+    console.log("📝 updateDraft called, hasLocalChanges:", updates.hasLocalChanges);
+    
     const draft = this._drafts.get(schemaId);
     if (draft) {
       Object.assign(draft, updates);
       draft.hasLocalChanges = true;
       this.saveDraftsToStorage();
+      console.log("✅ Draft saved, nodes:", draft.nodes?.length, "edges:", draft.edges?.length);
     }
   }
 

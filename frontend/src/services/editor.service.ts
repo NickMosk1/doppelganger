@@ -46,11 +46,15 @@ class EditorService {
     await api.delete(`/schemas/nodes/${nodeId}`);
   }
 
-  async createConnection(schemaId: string, sourceNodeId: string, targetNodeId: string, cableId: string, lengthM: number): Promise<{ id: string }> {
+  async createConnection(
+    schemaId: string, 
+    sourceNodeId: string, 
+    targetNodeId: string, 
+    lengthM: number
+  ): Promise<any> {
     const response = await api.post(`/schemas/${schemaId}/connections`, {
       sourceNodeId,
       targetNodeId,
-      cableId,
       lengthM,
     });
     return response.data;

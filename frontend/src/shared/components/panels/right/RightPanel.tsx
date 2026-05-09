@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { observer } from "mobx-react-lite";
 import { 
   RightPanelContainer, 
@@ -25,7 +25,7 @@ type TabType = "properties" | "factors" | "simulation";
 type ModeType = "view" | "edit";
 
 const RightPanel: React.FC = observer(() => {
-  const { editorStore } = useStores();
+  const { editorStore, draftStore } = useStores();
   const { width, startResize } = useResizePanel();
   const [activeTab, setActiveTab] = useState<TabType>("properties");
   const [mode, setMode] = useState<ModeType>("view");
@@ -45,9 +45,23 @@ const RightPanel: React.FC = observer(() => {
     return "Свойства";
   };
 
-  // Сохраняем изменения
+  // Функция сохранения черновика
+  const saveDraft = useCallback(() => {
+    const schemaId = editorStore.currentSchemaId;
+    if (schemaId && draftStore.currentDraft) {
+      console.log("💾 Saving draft after edit");
+      draftStore.updateDraft(schemaId, {
+        nodes: editorStore.nodes,
+        edges: editorStore.edges,
+      });
+    }
+  }, [editorStore, draftStore]);
+
+  // Сохраняем изменения в store и на канвас
   const handleSave = () => {
     if (pendingChanges) {
+      console.log("✅ Applying changes to store:", pendingChanges);
+      
       if (selectedNode) {
         Object.entries(pendingChanges).forEach(([key, value]) => {
           editorStore.updateNodeField(selectedNode.id, key as any, value);
@@ -59,6 +73,11 @@ const RightPanel: React.FC = observer(() => {
         });
       }
       setPendingChanges(null);
+      
+      // Сохраняем черновик после изменений
+      setTimeout(() => {
+        saveDraft();
+      }, 100);
     }
     setMode("view");
   };
@@ -72,13 +91,24 @@ const RightPanel: React.FC = observer(() => {
 
   // Переключение в режим редактирования
   const handleEdit = () => {
-    setPendingChanges(null);
+    // Загружаем текущие данные в форму
+    if (selectedNode) {
+      const currentData = {
+        customName: selectedNode.customName || selectedNode.name,
+        baseLatencyMs: selectedNode.baseLatencyMs || 0,
+        maxThroughputMbps: selectedNode.maxThroughputMbps || 0,
+        lengthM: selectedNode.lengthM || 10,
+      };
+      setPendingChanges(currentData);
+    }
+    if (selectedEdge) {
+      const currentData = {
+        lengthM: selectedEdge.lengthM || 10,
+        isActive: selectedEdge.isActive !== false,
+      };
+      setPendingChanges(currentData);
+    }
     setMode("edit");
-  };
-
-  // Обработка изменений из Edit компонентов
-  const handleDataChange = (updatedData: any) => {
-    setPendingChanges(updatedData);
   };
 
   // Попытка выхода из режима редактирования
@@ -91,16 +121,24 @@ const RightPanel: React.FC = observer(() => {
   };
 
   const handleDelete = () => {
-    if (selectedNode) {
-      editorStore.removeNode(selectedNode.id);
-    }
     if (selectedEdge) {
       editorStore.removeEdge(selectedEdge.id);
+      saveDraft();
+    }
+    if (selectedNode) {
+      editorStore.removeNode(selectedNode.id);
+      saveDraft();
     }
     setShowDeleteDialog(false);
     editorStore.clearSelection();
     setMode("view");
     setPendingChanges(null);
+  };
+
+  // Обработка изменений из Edit компонентов
+  const handleDataChange = (updatedData: any) => {
+    console.log("📝 Data changed:", updatedData);
+    setPendingChanges(updatedData);
   };
 
   const renderContent = () => {

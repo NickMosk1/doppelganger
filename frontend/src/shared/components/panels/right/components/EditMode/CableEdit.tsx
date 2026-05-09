@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { EditorNode } from '../../../../../types';
 import { PropertyGroup, PropertyLabel, PropertyInput } from '../../RightPanel.styles';
 
@@ -14,9 +14,18 @@ const CableEdit: React.FC<CableEditProps> = ({ node, onDataChange, initialData }
     lengthM: initialData?.lengthM !== undefined ? initialData.lengthM : (node.lengthM || 10),
   });
 
+  // Обновляем форму при изменении initialData
+  useEffect(() => {
+    setFormData({
+      customName: initialData?.customName !== undefined ? initialData.customName : (node.customName || node.name),
+      lengthM: initialData?.lengthM !== undefined ? initialData.lengthM : (node.lengthM || 10),
+    });
+  }, [initialData, node.customName, node.name, node.lengthM]);
+
+  // Отправляем изменения при каждом обновлении формы
   useEffect(() => {
     onDataChange(formData);
-  }, [formData]);
+  }, [formData, onDataChange]);
 
   const handleChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));

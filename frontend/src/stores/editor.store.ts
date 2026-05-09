@@ -132,13 +132,6 @@ class EditorStore {
     }
   }
 
-  updateNodeField<T extends keyof EditorNode>(nodeId: string, field: T, value: EditorNode[T]) {
-    const node = this._nodes.find(n => n.id === nodeId);
-    if (node) {
-      node[field] = value;
-    }
-  }
-
   updateNodeStatus(nodeId: string, status: NodeStatus) {
     const node = this._nodes.find(n => n.id === nodeId);
     if (node) {
@@ -171,14 +164,6 @@ class EditorStore {
     }
   }
 
-  removeNode(nodeId: string) {
-    this._nodes = this._nodes.filter(n => n.id !== nodeId);
-    this._edges = this._edges.filter(e => e.source !== nodeId && e.target !== nodeId);
-    if (this._selectedNodeId === nodeId) {
-      this._selectedNodeId = null;
-    }
-  }
-
   // ============ EDGE METHODS ============
 
   updateEdge(edgeId: string, data: Partial<EditorEdge>) {
@@ -204,13 +189,6 @@ class EditorStore {
     const edge = this._edges.find(e => e.id === edgeId);
     if (edge) {
       edge.isActive = isActive;
-    }
-  }
-
-  removeEdge(edgeId: string) {
-    this._edges = this._edges.filter(e => e.id !== edgeId);
-    if (this._selectedEdgeId === edgeId) {
-      this._selectedEdgeId = null;
     }
   }
 
@@ -289,23 +267,6 @@ class EditorStore {
     return this._edges;
   }
 
-  // Метод для обновления состояния порта
-  updatePortConnection(nodeId: string, portId: string, isConnected: boolean) {
-    console.log("updatePortConnection:", nodeId, portId, isConnected);
-    const node = this._nodes.find(n => n.id === nodeId);
-    if (node && node.ports) {
-      const port = node.ports.find(p => p.id === portId);
-      if (port) {
-        port.isConnected = isConnected;
-        console.log(`Port ${portId} on node ${nodeId} set to ${isConnected}`);
-      } else {
-        console.log(`Port ${portId} not found on node ${nodeId}`);
-      }
-    } else {
-      console.log(`Node ${nodeId} not found or has no ports`);
-    }
-  }
-
   // Метод для добавления портов к устройству
   addPortsToNode(nodeId: string, ports: Port[]) {
     const node = this._nodes.find(n => n.id === nodeId);
@@ -332,7 +293,49 @@ class EditorStore {
     return this._edges.filter(e => e.source === portId || e.target === portId);
   }
 
-  // Добавьте метод для проверки, занят ли порт
+  // Метод для получения связей по порту
+  getEdgeByPort(nodeId: string, portId: string): EditorEdge | undefined {
+    return this._edges.find(
+      e => (e.sourceNodeId === nodeId && e.source === portId) ||
+          (e.targetNodeId === nodeId && e.target === portId)
+    );
+  }
+
+    canCreateEdge(sourceNodeId: string, sourcePortId: string, targetNodeId: string, targetPortId: string): boolean {
+    // 1. Нельзя соединять узел с самим собой
+    if (sourceNodeId === targetNodeId) {
+      console.warn("Cannot connect node to itself");
+      return false;
+    }
+    
+    // 2. Проверяем, не занят ли порт источника
+    const sourcePortOccupied = this.isPortConnected(sourceNodeId, sourcePortId);
+    if (sourcePortOccupied) {
+      console.warn("Source port is already connected");
+      return false;
+    }
+    
+    // 3. Проверяем, не занят ли порт назначения
+    const targetPortOccupied = this.isPortConnected(targetNodeId, targetPortId);
+    if (targetPortOccupied) {
+      console.warn("Target port is already connected");
+      return false;
+    }
+    
+    // 4. Проверяем, не существует ли уже такой связи
+    const edgeExists = this._edges.some(e => 
+      (e.source === sourcePortId && e.target === targetPortId) ||
+      (e.source === targetPortId && e.target === sourcePortId)
+    );
+    if (edgeExists) {
+      console.warn("Edge already exists");
+      return false;
+    }
+    
+    return true;
+  }
+
+  // Проверка, занят ли порт
   isPortConnected(nodeId: string, portId: string): boolean {
     const node = this._nodes.find(n => n.id === nodeId);
     if (!node || !node.ports) return false;
@@ -341,27 +344,99 @@ class EditorStore {
     return port?.isConnected || false;
   }
 
-  // Обновите addEdge с проверкой
-  addEdge(edge: EditorEdge) {
-    // Проверяем, не заняты ли уже порты
-    const sourcePortOccupied = this.isPortConnected(edge.sourceNodeId, edge.source);
-    const targetPortOccupied = this.isPortConnected(edge.targetNodeId, edge.target);
-    
-    if (sourcePortOccupied || targetPortOccupied) {
-      console.warn("Port already connected!");
+  // Добавление связи (только локально, без API)
+  addEdge(edge: EditorEdge): boolean {
+    // Проверяем возможность создания
+    if (!this.canCreateEdge(edge.sourceNodeId, edge.source, edge.targetNodeId, edge.target)) {
       return false;
     }
     
+    // Добавляем связь
     this._edges.push(edge);
+    
+    // Обновляем состояние портов
+    this.updatePortConnection(edge.sourceNodeId, edge.source, true);
+    this.updatePortConnection(edge.targetNodeId, edge.target, true);
+    
     return true;
   }
 
-  // Метод для получения связей по порту
-  getEdgeByPort(nodeId: string, portId: string): EditorEdge | undefined {
-    return this._edges.find(
-      e => (e.sourceNodeId === nodeId && e.source === portId) ||
-          (e.targetNodeId === nodeId && e.target === portId)
+  // Обновление состояния порта
+  private updatePortConnection(nodeId: string, portId: string, isConnected: boolean) {
+    const node = this._nodes.find(n => n.id === nodeId);
+    if (node && node.ports) {
+      const port = node.ports.find(p => p.id === portId);
+      if (port) {
+        port.isConnected = isConnected;
+      }
+    }
+  }
+
+  updateNodeField<T extends keyof EditorNode>(nodeId: string, field: T, value: EditorNode[T]) {
+    console.log(`🔄 updateNodeField: ${nodeId}, ${String(field)} = ${value}`);
+    const node = this._nodes.find(n => n.id === nodeId);
+    if (node) {
+      node[field] = value;
+      console.log(`✅ Node updated: ${node.customName || node.name}`);
+    }
+  }
+
+  removeEdge(edgeId: string) {
+    console.log("🗑️ EditorStore.removeEdge called:", edgeId);
+    
+    const edge = this._edges.find(e => e.id === edgeId);
+    if (!edge) {
+      console.log("⚠️ Edge not found:", edgeId);
+      return;
+    }
+    
+    // Освобождаем порты
+    this.updatePortConnection(edge.sourceNodeId, edge.source, false);
+    this.updatePortConnection(edge.targetNodeId, edge.target, false);
+    
+    // Удаляем
+    const before = this._edges.length;
+    this._edges = this._edges.filter(e => e.id !== edgeId);
+    console.log(`📊 Edges: ${before} → ${this._edges.length}`);
+    
+    if (this._selectedEdgeId === edgeId) {
+      this._selectedEdgeId = null;
+    }
+  }
+
+  removeNode(nodeId: string) {
+    console.log("🗑️ EditorStore.removeNode called:", nodeId);
+    
+    // Находим все связи
+    const connectedEdges = this._edges.filter(e => 
+      e.sourceNodeId === nodeId || e.targetNodeId === nodeId
     );
+    console.log(`📊 Found ${connectedEdges.length} connected edges`);
+    
+    // Удаляем связи (освобождая порты)
+    connectedEdges.forEach(edge => {
+      if (edge.sourceNodeId === nodeId) {
+        this.updatePortConnection(edge.targetNodeId, edge.target, false);
+      } else {
+        this.updatePortConnection(edge.sourceNodeId, edge.source, false);
+      }
+    });
+    
+    // Удаляем связи
+    const beforeEdges = this._edges.length;
+    this._edges = this._edges.filter(e => 
+      e.sourceNodeId !== nodeId && e.targetNodeId !== nodeId
+    );
+    console.log(`📊 Edges: ${beforeEdges} → ${this._edges.length}`);
+    
+    // Удаляем узел
+    const beforeNodes = this._nodes.length;
+    this._nodes = this._nodes.filter(n => n.id !== nodeId);
+    console.log(`📊 Nodes: ${beforeNodes} → ${this._nodes.length}`);
+    
+    if (this._selectedNodeId === nodeId) {
+      this._selectedNodeId = null;
+    }
   }
 }
 

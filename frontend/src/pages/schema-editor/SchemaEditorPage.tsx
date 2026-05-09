@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { observer } from "mobx-react-lite";
 import { debounce } from "lodash";
@@ -131,75 +131,30 @@ useEffect(() => {
   }, [id]);
 
   // Автосохранение черновика при изменениях (debounced)
+  // src/pages/schema-editor/SchemaEditorPage.tsx
+
+  // Автосохранение черновика при изменениях
   const autoSaveDraft = useCallback(
     debounce((schemaId: string, name: string, nodes: any[], edges: any[]) => {
       if (schemaId) {
+        console.log("📝 Auto-saving draft:", { nodesCount: nodes.length, edgesCount: edges.length });
         draftStore.updateDraft(schemaId, {
           schemaName: name,
           nodes: nodes,
           edges: edges,
         });
-        console.log("Draft auto-saved");
       }
-    }, 1000),
+    }, 500),
     []
   );
 
-  // Следим за изменениями и автосохраняем
+  // Следим за изменениями узлов И связей
   useEffect(() => {
     if (draftStore.currentDraft && id) {
+      console.log("🔄 Changes detected - auto-saving");
       autoSaveDraft(id, schemaName, editorStore.nodes, editorStore.edges);
     }
-  }, [editorStore.nodes, editorStore.edges, schemaName, id]);
-
-  const handleSave = async () => {
-    if (!id || id === "new") {
-      // Создаем новую схему на бэке
-      setIsSaving(true);
-      try {
-        const newSchema = await editorService.createSchema(
-          schemaName,
-          "",
-          false
-        );
-        
-        // Сохраняем узлы и связи
-        for (const node of editorStore.nodes) {
-          if (node.type === "DEVICE" && node.deviceId) {
-            await editorService.createNode(newSchema.id, node.deviceId, node.position, node.customName);
-          }
-        }
-        
-        for (const edge of editorStore.edges) {
-          await editorService.createConnection(newSchema.id, edge.source, edge.target, edge.cableId || "", edge.lengthM);
-        }
-        
-        draftStore.markAsSaved(newSchema.id);
-        draftStore.clearDraft(id ?? "");
-        editorStore.setCurrentSchemaId(newSchema.id);
-        navigate(`/editor/${newSchema.id}`, { replace: true });
-      } catch (error) {
-        console.error("Failed to save schema:", error);
-        alert("Ошибка при сохранении схемы");
-      } finally {
-        setIsSaving(false);
-      }
-    } else {
-      // Обновляем существующую схему
-      setIsSaving(true);
-      try {
-        await editorService.updateSchema(id, { name: schemaName });
-        // TODO: Обновить узлы и связи (опционально)
-        draftStore.markAsSaved(id);
-        alert("Схема сохранена");
-      } catch (error) {
-        console.error("Failed to save schema:", error);
-        alert("Ошибка при сохранении схемы");
-      } finally {
-        setIsSaving(false);
-      }
-    }
-  };
+  }, [editorStore.nodes, editorStore.edges, schemaName, id, autoSaveDraft]);
 
   const handleValidate = async () => {
     if (!id || id === "new") {
@@ -268,6 +223,150 @@ useEffect(() => {
     } catch (error) {
       console.error("Failed to load history:", error);
       alert("Ошибка при загрузке истории");
+    }
+  };
+
+  // const handleSave = async () => {
+  //   if (!id || id === "new") {
+  //     // Создаем новую схему на бэке
+  //     setIsSaving(true);
+  //     try {
+  //       // 1. Создаем схему
+  //       const newSchema = await editorService.createSchema(schemaName, "", false);
+        
+  //       // 2. Сохраняем все узлы
+  //       const nodeIdMap = new Map(); // маппинг временных ID на реальные
+  //       for (const node of editorStore.nodes) {
+  //         if (node.type === "DEVICE" && node.deviceId) {
+  //           const savedNode = await editorService.createNode(
+  //             newSchema.id, 
+  //             node.deviceId, 
+  //             node.position, 
+  //             node.customName
+  //           );
+  //           nodeIdMap.set(node.id, savedNode.id);
+  //         }
+  //       }
+        
+  //       // 3. Сохраняем все связи (с обновленными ID узлов)
+  //       for (const edge of editorStore.edges) {
+  //         const realSourceId = nodeIdMap.get(edge.sourceNodeId) || edge.sourceNodeId;
+  //         const realTargetId = nodeIdMap.get(edge.targetNodeId) || edge.targetNodeId;
+          
+  //         await editorService.createConnection(
+  //           newSchema.id,
+  //           realSourceId,
+  //           realTargetId,
+  //           edge.lengthM  // только длина кабеля
+  //         );
+  //       }
+        
+  //       // 4. Обновляем черновик
+  //       draftStore.markAsSaved(newSchema.id);
+  //       draftStore.clearDraft(id as any);
+  //       editorStore.setCurrentSchemaId(newSchema.id);
+  //       navigate(`/editor/${newSchema.id}`, { replace: true });
+        
+  //     } catch (error) {
+  //       console.error("Failed to save schema:", error);
+  //     } finally {
+  //       setIsSaving(false);
+  //     }
+  //   }
+  // };
+
+  const nodesLengthRef = useRef(editorStore.nodes.length);
+  const edgesLengthRef = useRef(editorStore.edges.length);
+
+  // Форсированное сохранение черновика
+  const saveDraftToLocalStorage = useCallback(() => {
+    if (draftStore.currentDraft && id) {
+      console.log("💾 Saving draft to localStorage:", {
+        nodes: editorStore.nodes.length,
+        edges: editorStore.edges.length,
+        name: schemaName
+      });
+      
+      draftStore.updateDraft(id, {
+        schemaName: schemaName,
+        nodes: JSON.parse(JSON.stringify(editorStore.nodes)),
+        edges: JSON.parse(JSON.stringify(editorStore.edges)),
+      });
+    }
+  }, [id, schemaName, editorStore.nodes, editorStore.edges, draftStore]);
+
+  // Следим за изменениями через ref
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const currentNodesLength = editorStore.nodes.length;
+      const currentEdgesLength = editorStore.edges.length;
+      
+      if (currentNodesLength !== nodesLengthRef.current || 
+          currentEdgesLength !== edgesLengthRef.current) {
+        console.log("🔄 Changes detected via interval");
+        nodesLengthRef.current = currentNodesLength;
+        edgesLengthRef.current = currentEdgesLength;
+        saveDraftToLocalStorage();
+      }
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [editorStore.nodes.length, editorStore.edges.length, saveDraftToLocalStorage]);
+
+  // Загрузка схемы
+  useEffect(() => {
+    const loadSchema = async () => {
+      // ... существующий код loadSchema
+    };
+    loadSchema();
+  }, [id]);
+
+  // Принудительное сохранение на бэк
+  const handleSave = async () => {
+    console.log("=== HANDLE SAVE CALLED ===");
+    console.log("Schema ID:", id);
+    console.log("Nodes:", editorStore.nodes.length);
+    console.log("Edges:", editorStore.edges.length);
+    
+    if (!id || id === "new") {
+      setIsSaving(true);
+      try {
+        // Создаем новую схему
+        const newSchema = await editorService.createSchema(schemaName, "", false);
+        console.log("✅ Schema created:", newSchema);
+        
+        // Сохраняем узлы
+        for (const node of editorStore.nodes) {
+          if (node.type === "DEVICE" && node.deviceId) {
+            await editorService.createNode(newSchema.id, node.deviceId, node.position, node.customName);
+          }
+        }
+        
+        // Сохраняем связи
+        for (const edge of editorStore.edges) {
+          await editorService.createConnection(newSchema.id, edge.sourceNodeId, edge.targetNodeId, edge.lengthM);
+        }
+        
+        draftStore.markAsSaved(newSchema.id);
+        draftStore.clearDraft(id as any);
+        editorStore.setCurrentSchemaId(newSchema.id);
+        navigate(`/editor/${newSchema.id}`, { replace: true });
+      } catch (error) {
+        console.error("Failed to save schema:", error);
+      } finally {
+        setIsSaving(false);
+      }
+    } else {
+      // Обновляем существующую схему
+      setIsSaving(true);
+      try {
+        await editorService.updateSchema(id, { name: schemaName });
+        alert("Схема сохранена!");
+      } catch (error) {
+        console.error("Failed to save schema:", error);
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 

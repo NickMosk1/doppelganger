@@ -1,4 +1,5 @@
-import { useCallback, useEffect } from "react";
+// src/shared/components/Canvas/NetworkCanvas.tsx
+import { useCallback, useEffect, useRef, useState } from "react";
 import ReactFlow, {
   Controls,
   MiniMap,
@@ -22,6 +23,7 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { observer } from "mobx-react-lite";
+import { reaction } from "mobx";
 import { useStores } from "../../../hooks/useStores";
 import { DeviceNode, SubSchemaNode, CableNode } from "./nodes";
 import { CanvasContainer, CanvasWrapper } from "./NetworkCanvas.styles";
@@ -39,13 +41,89 @@ interface NetworkCanvasProps {
 }
 
 const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
-  const { editorStore } = useStores();
-  const { setCenter } = useReactFlow();
+  const { editorStore, draftStore } = useStores();
+  const { setCenter, setViewport } = useReactFlow();
   const viewport = useViewport();
+  
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+
+  // Добавляем forceUpdate счетчик
+  const [updateTrigger, setUpdateTrigger] = useState(0);
+  
+  // Функция принудительного обновления канваса
+  const forceCanvasUpdate = useCallback(() => {
+    console.log("🔄 Force canvas update");
+    setNodes(convertToReactFlowNodes(editorStore.nodes));
+    setEdges(convertToReactFlowEdges(editorStore.edges));
+    setUpdateTrigger(prev => prev + 1);
+  }, [editorStore.nodes, editorStore.edges]);
+
+  // Следим за изменением количества узлов и связей
+  useEffect(() => {
+    console.log(`📊 Store changed - nodes: ${editorStore.nodes.length}, edges: ${editorStore.edges.length}`);
+    forceCanvasUpdate();
+  }, [editorStore.nodes.length, editorStore.edges.length, forceCanvasUpdate]);
+
+  // Следим за самими узлами (изменение свойств)
+  useEffect(() => {
+    const nodesChanged = JSON.stringify(editorStore.nodes.map(n => ({ id: n.id, name: n.customName || n.name, position: n.position })));
+    // вызываем обновление при любом изменении
+    forceCanvasUpdate();
+  }, [editorStore.nodes]);
+
+  // Обработчик удаления узлов
+  const onNodesDelete = useCallback((nodesToDelete: Node[]) => {
+    console.log("🗑️ Nodes delete event:", nodesToDelete.map(n => n.id));
+    
+    nodesToDelete.forEach(node => {
+      editorStore.removeNode(node.id);
+    });
+    
+    // Принудительно обновляем канвас
+    setTimeout(() => {
+      forceCanvasUpdate();
+    }, 10);
+    
+    // Сохраняем черновик
+    const schemaId = editorStore.currentSchemaId;
+    if (schemaId && draftStore.currentDraft) {
+      setTimeout(() => {
+        draftStore.updateDraft(schemaId, {
+          nodes: editorStore.nodes,
+          edges: editorStore.edges,
+        });
+      }, 100);
+    }
+  }, [editorStore, draftStore, forceCanvasUpdate]);
+
+  // Обработчик удаления связей
+  const onEdgesDelete = useCallback((edgesToDelete: Edge[]) => {
+    console.log("🗑️ Edges delete event:", edgesToDelete.map(e => e.id));
+    
+    edgesToDelete.forEach(edge => {
+      editorStore.removeEdge(edge.id);
+    });
+    
+    // Принудительно обновляем канвас
+    setTimeout(() => {
+      forceCanvasUpdate();
+    }, 10);
+    
+    // Сохраняем черновик
+    const schemaId = editorStore.currentSchemaId;
+    if (schemaId && draftStore.currentDraft) {
+      setTimeout(() => {
+        draftStore.updateDraft(schemaId, {
+          edges: editorStore.edges,
+        });
+      }, 100);
+    }
+  }, [editorStore, draftStore, forceCanvasUpdate]);
 
   // Конвертация узлов
-  const convertToReactFlowNodes = useCallback((nodes: EditorNode[]): Node[] => {
-    return nodes.map(node => {
+  const convertToReactFlowNodes = useCallback((storeNodes: EditorNode[]): Node[] => {
+    return storeNodes.map(node => {
       if (node.type === EditorNodes.CABLE) {
         return {
           id: node.id,
@@ -53,7 +131,7 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
           position: node.position,
           data: {
             id: node.id,
-            name: node.name,
+            name: node.customName || node.name,
             lengthM: node.lengthM || 10,
             cableType: node.cableType || "Ethernet",
           },
@@ -90,9 +168,9 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
     });
   }, []);
 
-  // Конвертация связей (ВАЖНО: правильные поля для React Flow)
-  const convertToReactFlowEdges = useCallback((edges: EditorEdge[]): Edge[] => {
-    return edges.map(edge => ({
+  // Конвертация связей
+  const convertToReactFlowEdges = useCallback((storeEdges: EditorEdge[]): Edge[] => {
+    return storeEdges.map(edge => ({
       id: edge.id,
       source: edge.sourceNodeId,
       target: edge.targetNodeId,
@@ -103,30 +181,46 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
     }));
   }, []);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  // MobX reaction для отслеживания изменений узлов
+  useEffect(() => {
+    const dispose = reaction(
+      () => editorStore.nodes.map(n => ({ 
+        id: n.id, 
+        name: n.customName || n.name, 
+        position: n.position,
+        lengthM: n.lengthM,
+      })),
+      () => {
+        console.log("🔄 Nodes changed, updating React Flow");
+        setNodes(convertToReactFlowNodes(editorStore.nodes));
+      },
+      { delay: 100 }
+    );
+    
+    return () => dispose();
+  }, [editorStore.nodes, convertToReactFlowNodes, setNodes]);
+
+  // MobX reaction для отслеживания изменений связей
+  useEffect(() => {
+    const dispose = reaction(
+      () => editorStore.edges.map(e => ({ id: e.id, lengthM: e.lengthM })),
+      () => {
+        console.log("🔄 Edges changed, updating React Flow");
+        setEdges(convertToReactFlowEdges(editorStore.edges));
+      },
+      { delay: 100 }
+    );
+    
+    return () => dispose();
+  }, [editorStore.edges, convertToReactFlowEdges, setEdges]);
 
   // Инициализация при монтировании
   useEffect(() => {
-    const initialNodes = convertToReactFlowNodes(editorStore.nodes);
-    const initialEdges = convertToReactFlowEdges(editorStore.edges);
-    setNodes(initialNodes);
-    setEdges(initialEdges);
+    setNodes(convertToReactFlowNodes(editorStore.nodes));
+    setEdges(convertToReactFlowEdges(editorStore.edges));
   }, []);
 
-  // Синхронизация из store (при изменении количества узлов)
-  useEffect(() => {
-    if (editorStore.nodes.length !== nodes.length) {
-      setNodes(convertToReactFlowNodes(editorStore.nodes));
-    }
-  }, [editorStore.nodes.length]);
-
-  // Синхронизация связей из store
-  useEffect(() => {
-    setEdges(convertToReactFlowEdges(editorStore.edges));
-  }, [editorStore.edges.length, editorStore.edges]);
-
-  // Обработка изменений в React Flow
+  // Обработчики изменений
   const onNodesChangeHandler: OnNodesChange = useCallback((changes: NodeChange[]) => {
     onNodesChange(changes);
     changes.forEach((change) => {
@@ -140,17 +234,15 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
     onEdgesChange(changes);
   }, [onEdgesChange]);
 
-  // Создание новой связи
+  // Обработчик создания связи
   const onConnect = useCallback((connection: Connection) => {
+    console.log("=== CONNECTION DETECTED ===", connection);
+    
     if (!connection.source || !connection.target) return;
     
-    const edgeId = `edge-${Date.now()}`;
+    const edgeId = `${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
     
-    // Добавляем в React Flow
-    setEdges((eds) => addEdge({ ...connection, id: edgeId, style: { stroke: '#e54848', strokeWidth: 2 } }, eds));
-    
-    // Сохраняем в store
-    editorStore.addEdge({
+    const newEdge: EditorEdge = {
       id: edgeId,
       source: connection.sourceHandle!,
       target: connection.targetHandle!,
@@ -158,13 +250,33 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
       targetNodeId: connection.target,
       lengthM: 10,
       isActive: true,
-    });
+    };
     
-    // Обновляем состояние портов
-    editorStore.updatePortConnection(connection.source, connection.sourceHandle!, true);
-    editorStore.updatePortConnection(connection.target, connection.targetHandle!, true);
+    const added = editorStore.addEdge(newEdge);
     
-  }, [editorStore, setEdges]);
+    if (added) {
+      const reactFlowEdge: Edge = {
+        id: edgeId,
+        source: connection.source,
+        target: connection.target,
+        sourceHandle: connection.sourceHandle,
+        targetHandle: connection.targetHandle,
+        label: '10м',
+        style: { stroke: '#e54848', strokeWidth: 2 },
+      };
+      setEdges((eds) => addEdge(reactFlowEdge, eds));
+      
+      // Сохраняем черновик
+      const schemaId = editorStore.currentSchemaId;
+      if (schemaId && draftStore.currentDraft) {
+        setTimeout(() => {
+          draftStore.updateDraft(schemaId, {
+            edges: editorStore.edges,
+          });
+        }, 100);
+      }
+    }
+  }, [editorStore, setEdges, draftStore]);
 
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
     editorStore.selectNode(node.id);
@@ -180,8 +292,16 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
 
   // Центрирование
   useEffect(() => {
-    setTimeout(() => setCenter(0, 0, { zoom: 1, duration: 300 }), 100);
+    setTimeout(() => {
+      setCenter(0, 0, { zoom: 1, duration: 300 });
+    }, 100);
   }, [setCenter]);
+
+  useEffect(() => {
+    setTimeout(() => {
+      setViewport({ x: 0, y: 0, zoom: 1 });
+    }, 100);
+  }, [setViewport]);
 
   return (
     <CanvasContainer>
@@ -191,6 +311,8 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
           edges={edges}
           onNodesChange={onNodesChangeHandler}
           onEdgesChange={onEdgesChangeHandler}
+          onNodesDelete={onNodesDelete}
+          onEdgesDelete={onEdgesDelete}
           onConnect={onConnect}
           onNodeClick={onNodeClick}
           onEdgeClick={onEdgeClick}
@@ -202,17 +324,17 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
           defaultViewport={{ x: 0, y: 0, zoom: 1 }}
         >
           <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#cbd5e1" />
-          <AxesWithGrid baseGridSize={50} axisOpacity={0.3} gridOpacity={0.4} minStepPx={15} maxStepPx={150} />
-          <Controls showInteractive={false} />
+          <AxesWithGrid baseGridSize={50} axisOpacity={0.8} gridOpacity={0.4} minStepPx={15} maxStepPx={150} />
+          <Controls />
           <MiniMap />
           <Panel position="top-left">
             <div style={{ background: "white", padding: "4px 12px", borderRadius: "6px", fontSize: "12px" }}>
-              Zoom: {(viewport.zoom * 100).toFixed(0)}%
+              🎯 Сетка | 📐 Zoom: {(viewport.zoom * 100).toFixed(0)}%
             </div>
           </Panel>
           <Panel position="top-right">
             <div style={{ background: "white", padding: "4px 12px", borderRadius: "6px", fontSize: "12px" }}>
-              Устройств: {nodes.filter(n => n.type === 'device').length} | Связей: {edges.length}
+              📊 Устройств: {nodes.filter(n => n.type === 'device').length} | 🔗 Связей: {edges.length}
             </div>
           </Panel>
         </ReactFlow>
