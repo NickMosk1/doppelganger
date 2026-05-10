@@ -1,11 +1,10 @@
-// src/pages/schema-editor/SchemaEditorPage.styles.ts
 import styled from 'styled-components';
 import { colors } from '../../shared/theme/colors';
 
 export const EditorContainer = styled.div`
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: calc(100vh - 112px);
   background: ${colors.background};
   overflow: hidden;
 `;

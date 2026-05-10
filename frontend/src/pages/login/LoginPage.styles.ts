@@ -5,7 +5,7 @@ export const LoginContainer = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
+  min-height: calc(100vh - 112px);
   background: linear-gradient(135deg, ${colors.primary}20 0%, ${colors.background} 100%);
 `;
 

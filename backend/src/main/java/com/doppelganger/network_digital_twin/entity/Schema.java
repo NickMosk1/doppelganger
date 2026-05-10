@@ -73,6 +73,17 @@ public class Schema {
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
+
+    private LocalDateTime lastOpenedAt;
+
+    // Добавьте геттер и сеттер
+    public LocalDateTime getLastOpenedAt() {
+        return lastOpenedAt;
+    }
+
+    public void setLastOpenedAt(LocalDateTime lastOpenedAt) {
+        this.lastOpenedAt = lastOpenedAt;
+    }
     
     // Getters and Setters
     public String getId() { return id; }

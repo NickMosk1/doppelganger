@@ -3,7 +3,7 @@ import { NavLink } from "react-router-dom";
 import { colors } from "../../theme/colors";
 
 export const LayoutContainer = styled.div`
-  min-height: 100vh;
+  min-height: calc(100vh - 112px);
   display: flex;
   flex-direction: column;
   background: ${colors.background};

@@ -103,4 +103,10 @@ public class SchemaController {
     public ResponseEntity<List<Schema>> getPublicSchemas() {
         return ResponseEntity.ok(schemaService.getPublicSchemas());
     }
+
+    @PostMapping("/{id}/last-opened")
+    public ResponseEntity<Void> updateLastOpened(@PathVariable String id) {
+        schemaService.updateLastOpened(id);
+        return ResponseEntity.ok().build();
+    }
 }

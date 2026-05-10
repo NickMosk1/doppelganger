@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { observer } from "mobx-react-lite";
-import { HomePage, LoginPage, SchemaEditorPage } from "./pages";
+import { HomePage, LoginPage, SchemaEditorPage, SchemasPage } from "./pages";
 import StoreProvider from "./stores/StoreProvider";
 import { useStores } from "./hooks/useStores";
 import { AppLayout, GlobalStyles } from "./shared";
@@ -22,7 +22,10 @@ const AppContent = observer(() => {
           path="/home"
           element={isAuthenticated ? <HomePage /> : <Navigate to="/login" />}
         />
-        {/* Добавить маршрут для редактора схем */}
+        <Route
+          path="/schemas"
+          element={isAuthenticated ? <SchemasPage /> : <Navigate to="/login" />}
+        />
         <Route
           path="/editor/:id"
           element={isAuthenticated ? <SchemaEditorPage /> : <Navigate to="/login" />}

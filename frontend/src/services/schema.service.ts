@@ -23,11 +23,6 @@ class SchemaService {
     return response.data;
   }
 
-  async getSchemaStats(id: string): Promise<SchemaStats> {
-    const response = await api.get<SchemaStats>(`/schemas/${id}/stats`);
-    return response.data;
-  }
-
   async createSchema(name: string, description: string, isPublic: boolean = false): Promise<SchemaSummary> {
     const response = await api.post<SchemaSummary>('/schemas', { name, description, isPublic });
     return response.data;
@@ -44,6 +39,25 @@ class SchemaService {
 
   async cloneSchema(id: string, newName: string): Promise<SchemaSummary> {
     const response = await api.post<SchemaSummary>(`/schemas/${id}/clone`, { name: newName });
+    return response.data;
+  }
+
+  async getRecentSchemas(limit: number = 5): Promise<SchemaSummary[]> {
+    const response = await api.get<SchemaSummary[]>(`/schemas/recent?limit=${limit}`);
+    return response.data;
+  }
+
+  async updateLastOpened(schemaId: string): Promise<void> {
+    await api.post(`/schemas/${schemaId}/last-opened`);
+  }
+
+  async getSchemaStats(schemaId: string): Promise<{
+    nodesCount: number;
+    connectionsCount: number;
+    devicesCount: number;
+    cablesCount: number;
+  }> {
+    const response = await api.get(`/schemas/${schemaId}/stats`);
     return response.data;
   }
 }
