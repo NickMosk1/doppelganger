@@ -65,7 +65,7 @@ export const WelcomeTitle = styled.h1`
   font-size: 36px;
   font-weight: 700;
   color: ${colors.text};
-  margin-bottom: 12px;
+  margin: 20px 0px;
 `;
 
 export const WelcomeDescription = styled.p`

@@ -70,7 +70,6 @@ const AxesWithGrid: React.FC<AxesWithGridProps> = ({
     // Форматирование координат
     const formatCoordinate = (value: number): string => {
       if (Math.abs(value) < 0.1) return '0';
-      if (Math.abs(value) >= 1000) return `${(value / 1000).toFixed(0)}k`;
       return value.toFixed(0);
     };
     

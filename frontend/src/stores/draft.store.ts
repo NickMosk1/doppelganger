@@ -53,10 +53,11 @@ class DraftStore {
     }
   }
 
-  createDraft(schemaId: string, schemaName: string, nodes: EditorNode[], edges: EditorEdge[]) {
+  createDraft(schemaId: string, schemaName: string, schemaDescription: string, nodes: EditorNode[], edges: EditorEdge[]) {
     const draft: DraftState = {
       schemaId,
       schemaName,
+      schemaDescription,  // ← добавляем
       nodes: JSON.parse(JSON.stringify(nodes)),
       edges: JSON.parse(JSON.stringify(edges)),
       lastSavedAt: null,
@@ -71,14 +72,11 @@ class DraftStore {
   }
 
   updateDraft(schemaId: string, updates: Partial<DraftState>) {
-    console.log("📝 updateDraft called, hasLocalChanges:", updates.hasLocalChanges);
-    
     const draft = this._drafts.get(schemaId);
     if (draft) {
       Object.assign(draft, updates);
       draft.hasLocalChanges = true;
       this.saveDraftsToStorage();
-      console.log("✅ Draft saved, nodes:", draft.nodes?.length, "edges:", draft.edges?.length);
     }
   }
 

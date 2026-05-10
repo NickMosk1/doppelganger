@@ -1,5 +1,4 @@
-// src/shared/components/Canvas/NetworkCanvas.tsx
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import ReactFlow, {
   Controls,
   MiniMap,
@@ -220,12 +219,46 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
       () => {
         console.log("🔄 Nodes changed, updating React Flow");
         setNodes(convertToReactFlowNodes(editorStore.nodes));
+        
+        // Автосохранение при изменении узлов
+        const schemaId = editorStore.currentSchemaId;
+        if (schemaId && draftStore.currentDraft) {
+          console.log("💾 Auto-saving draft after nodes change");
+          draftStore.updateDraft(schemaId, {
+            nodes: editorStore.nodes,
+            edges: editorStore.edges,
+          });
+        }
       },
-      { delay: 100 }
+      { delay: 300 }  // задержка 300ms для группировки изменений
     );
     
     return () => dispose();
-  }, [editorStore.nodes, convertToReactFlowNodes, setNodes]);
+  }, [editorStore.nodes, convertToReactFlowNodes, setNodes, draftStore, editorStore.currentSchemaId]);
+
+  // MobX reaction для отслеживания изменений связей
+  useEffect(() => {
+    const dispose = reaction(
+      () => editorStore.edges.map(e => ({ id: e.id, lengthM: e.lengthM })),
+      () => {
+        console.log("🔄 Edges changed, updating React Flow");
+        setEdges(convertToReactFlowEdges(editorStore.edges));
+        
+        // Автосохранение при изменении связей
+        const schemaId = editorStore.currentSchemaId;
+        if (schemaId && draftStore.currentDraft) {
+          console.log("💾 Auto-saving draft after edges change");
+          draftStore.updateDraft(schemaId, {
+            nodes: editorStore.nodes,
+            edges: editorStore.edges,
+          });
+        }
+      },
+      { delay: 300 }
+    );
+    
+    return () => dispose();
+  }, [editorStore.edges, convertToReactFlowEdges, setEdges, draftStore, editorStore.currentSchemaId]);
 
   // MobX reaction для отслеживания изменений связей
   useEffect(() => {
@@ -351,8 +384,8 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
           defaultViewport={{ x: 0, y: 0, zoom: 1 }}
         >
           <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#cbd5e1" />
-          <AxesWithGrid baseGridSize={50} axisOpacity={0.8} gridOpacity={0.4} minStepPx={15} maxStepPx={150} />
-          <Controls />
+          <AxesWithGrid baseGridSize={50} axisOpacity={0.4} gridOpacity={0.4} minStepPx={15} maxStepPx={150} />
+          <Controls showInteractive={false} />
           <MiniMap />
           <Panel position="top-left">
             <div style={{ background: "white", padding: "4px 12px", borderRadius: "6px", fontSize: "12px" }}>

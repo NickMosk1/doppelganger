@@ -6,10 +6,9 @@ import {
   PanelTab,
   TabHeader,
   TabContent,
-  CategorySection,
 } from "./LeftPanel.styles";
 import { CollapsibleSection } from "./components/CollapsibleSection/CollapsibleSection";
-import { AddItemButton, ItemCard } from "./components";
+import { AddItemButton, CategorySection, ItemCard } from "./components";
 import { cableTypeLabels, CableTypes, EditorNodes, NodeStatus, PortType } from "../../../types";
 import { generateDefaultPorts, getDeviceIcon } from "../../Canvas/utils";
 import { AddCableModal, AddDeviceModal } from "../../../ui";
@@ -42,7 +41,7 @@ const getRandomPosition = () => {
 };
 
 const LeftPanel: React.FC = observer(() => {
-  const { catalogStore, editorStore } = useStores();
+  const { catalogStore, editorStore, draftStore } = useStores();
   const { width, isResizing, startResize } = useResizePanel(280, 200, 450);
   const [activeTab, setActiveTab] = useState<TabType>("catalog");
   const [showAddDeviceModal, setShowAddDeviceModal] = useState(false);
@@ -53,7 +52,6 @@ const LeftPanel: React.FC = observer(() => {
   const [searchQuery, setSearchQuery] = useState("");
   const resizeHandleRef = useRef<HTMLDivElement>(null);
 
-  // Загрузка данных каталога
   useEffect(() => {
     const loadCatalog = async () => {
       setIsLoading(true);
@@ -86,6 +84,15 @@ const LeftPanel: React.FC = observer(() => {
         type: selectedDeviceType,
       });
       catalogStore.addDeviceSync(newDevice);
+      
+      // Сохраняем черновик после добавления
+      const schemaId = editorStore.currentSchemaId;
+      if (schemaId && draftStore.currentDraft) {
+        draftStore.updateDraft(schemaId, {
+          nodes: editorStore.nodes,
+          edges: editorStore.edges,
+        });
+      }
     } catch (error) {
       console.error("Failed to add device:", error);
     }
@@ -101,10 +108,6 @@ const LeftPanel: React.FC = observer(() => {
   };
 
   const handleItemClick = (item: any, sourceType: "device" | "cable" | "subschema") => {
-    console.log("=== handleItemClick called ===");
-    console.log("Item:", item);
-    console.log("SourceType:", sourceType);
-    
     if (sourceType === "cable") {
       const position = getRandomPosition();
       
@@ -125,7 +128,6 @@ const LeftPanel: React.FC = observer(() => {
         ],
       };
       
-      console.log("Adding cable node:", newNode);
       editorStore.addNode(newNode);
       return;
     }
@@ -175,7 +177,7 @@ const LeftPanel: React.FC = observer(() => {
 
   if (isLoading) {
     return (
-      <LeftPanelContainer $width={width} $isResizing={isResizing}>
+      <LeftPanelContainer style={{ width: `${width}px` }} $isResizing={isResizing}>
         <div style={{ padding: "40px", textAlign: "center", color: "#999" }}>
           Загрузка каталога...
         </div>
@@ -185,7 +187,7 @@ const LeftPanel: React.FC = observer(() => {
 
   if (error) {
     return (
-      <LeftPanelContainer $width={width} $isResizing={isResizing}>
+      <LeftPanelContainer style={{ width: `${width}px` }} $isResizing={isResizing}>
         <div style={{ padding: "40px", textAlign: "center", color: "#ef4444" }}>
           {error}
           <button 
@@ -201,13 +203,13 @@ const LeftPanel: React.FC = observer(() => {
 
   return (
     <LeftPanelContainer style={{ width: `${width}px` }} $isResizing={isResizing}>
-      <ResizeHandle 
+      <ResizeHandle
         ref={resizeHandleRef}
         onMouseDown={handleMouseDown}
         onMouseEnter={() => !isResizing && (document.body.style.cursor = 'ew-resize')}
         onMouseLeave={() => !isResizing && (document.body.style.cursor = '')}
       />
-      
+
       <TabHeader>
         <PanelTab active={activeTab === "catalog"} onClick={() => setActiveTab("catalog")}>
           Каталог
@@ -232,31 +234,44 @@ const LeftPanel: React.FC = observer(() => {
                     nested={true}
                     defaultExpanded={false}
                   >
-                    <CategorySection>
+                    <CategorySection title={label} icon={icon}>
                       {devices.map((device) => (
                         <ItemCard
                           key={device.id}
                           id={device.id}
                           name={device.name}
                           icon={device.icon || icon}
-                          description={device.description}
                           badge={device.manufacturer}
                           isCustom={device.isCustom}
+                          isSelected={editorStore.selectedNodeId === device.id}
+                          tooltipInfo={{
+                            title: device.name,
+                            rows: [
+                              { label: 'Производитель', value: device.manufacturer || '—' },
+                              { label: 'Тип', value: device.type },
+                              { label: 'Базовая задержка', value: `${device.baseLatencyMs || 0} мс` },
+                              { label: 'Пропускная способность', value: `${device.maxThroughputMbps || 0} Мбит/с` },
+                              { label: 'Порты', value: device.portCount || '—' },
+                            ],
+                          }}
                           onClick={() => handleItemClick(device, "device")}
                         />
                       ))}
-                      <AddItemButton
-                        onClick={() => {
-                          setSelectedDeviceType(type);
-                          setShowAddDeviceModal(true);
-                        }}
-                        label="Добавить"
-                        size="small"
-                      />
                     </CategorySection>
                   </CollapsibleSection>
                 );
               })}
+              <div style={{ padding: '8px 0 0 0' }}>
+                <AddItemButton
+                  onClick={() => {
+                    setSelectedDeviceType("ROUTER");
+                    setShowAddDeviceModal(true);
+                  }}
+                  label="+ Добавить устройство"
+                  size="normal"
+                  fullWidth
+                />
+              </div>
             </CollapsibleSection>
 
             <CollapsibleSection title="КАБЕЛИ" icon="🔌" defaultExpanded={false}>
@@ -276,32 +291,46 @@ const LeftPanel: React.FC = observer(() => {
                     nested={true}
                     defaultExpanded={false}
                   >
-                    <CategorySection>
+                    <CategorySection title={cableTypeLabels[cableType]} icon={"📁"}>
                       {cables.map((cable) => (
                         <ItemCard
                           key={cable.id}
                           id={cable.id}
                           name={cable.name}
-                          icon={cable.icon}
-                          description={`${cable.maxLengthM}м, ${cable.pricePerMeter}₽/м`}
+                          icon={cable.icon || "🔌"}
                           stats={`${cable.maxLengthM}м`}
                           isCustom={cable.isCustom}
+                          isSelected={editorStore.selectedNodeId === cable.id}
+                          tooltipInfo={{
+                            title: cable.name,
+                            rows: [
+                              { label: 'Тип', value: cable.type },
+                              { label: 'Макс. длина', value: `${cable.maxLengthM} м` },
+                              { label: 'Затухание', value: `${cable.attenuationDbPerKm} дБ/км` },
+                              { label: 'Цена', value: `${cable.pricePerMeter} ₽/м` },
+                              { label: 'Помехоустойчивость', value: `${cable.immunityRating || 5}/10` },
+                              { label: 'Раб. температура', value: `${cable.temperatureRating || 60}°C` },
+                            ],
+                          }}
                           onClick={() => handleItemClick(cable, "cable")}
                         />
                       ))}
-                      <AddItemButton
-                        onClick={() => setShowAddCableModal(true)}
-                        label="Добавить"
-                        size="small"
-                      />
                     </CategorySection>
                   </CollapsibleSection>
                 );
               })}
+              <div style={{ padding: '8px 0 0 0' }}>
+                <AddItemButton
+                  onClick={() => setShowAddCableModal(true)}
+                  label="+ Добавить кабель"
+                  size="normal"
+                  fullWidth
+                />
+              </div>
             </CollapsibleSection>
 
-            <CollapsibleSection title="ПУБЛИЧНЫЕ СХЕМЫ" icon="🏪" defaultExpanded={false}>
-              <CategorySection>
+            {/* <CollapsibleSection title="ПУБЛИЧНЫЕ СХЕМЫ" icon="🏪" defaultExpanded={false}>
+              <CategorySection title={label} icon={icon}>
                 {catalogStore.publicSchemas.map((schema) => (
                   <ItemCard
                     key={schema.id}
@@ -314,14 +343,14 @@ const LeftPanel: React.FC = observer(() => {
                   />
                 ))}
               </CategorySection>
-            </CollapsibleSection>
+            </CollapsibleSection> */}
           </>
         )}
 
         {activeTab === "explorer" && (
           <>
             <CollapsibleSection title="УСТРОЙСТВА" icon="🖥️" defaultExpanded={true}>
-              <CategorySection>
+              <CategorySection title="УСТРОЙСТВА" icon="🖥️">
                 {editorStore.nodes
                   .filter(node => node.type === EditorNodes.DEVICE)
                   .map((node) => (
@@ -345,7 +374,7 @@ const LeftPanel: React.FC = observer(() => {
             </CollapsibleSection>
 
             <CollapsibleSection title="КАБЕЛИ" icon="🔌" defaultExpanded={true}>
-              <CategorySection>
+              <CategorySection title="КАБЕЛИ" icon="🔌">
                 {editorStore.nodes
                   .filter(node => node.type === EditorNodes.CABLE)
                   .map((cable) => (
@@ -369,7 +398,7 @@ const LeftPanel: React.FC = observer(() => {
             </CollapsibleSection>
 
             <CollapsibleSection title="СВЯЗИ" icon="🔗" defaultExpanded={true}>
-              <CategorySection>
+              <CategorySection title="СВЯЗИ" icon="🔗">
                 {editorStore.edges.map((edge) => {
                   const sourceNode = editorStore.getNodeById(edge.sourceNodeId);
                   const targetNode = editorStore.getNodeById(edge.targetNodeId);
@@ -381,7 +410,7 @@ const LeftPanel: React.FC = observer(() => {
                       icon="🔗"
                       description={`Длина: ${edge.lengthM}м`}
                       badge="Связь"
-                      isSelected={editorStore.selectedEdgeId === edge.id}  // ← добавляем
+                      isSelected={editorStore.selectedEdgeId === edge.id}
                       onClick={() => editorStore.selectEdge(edge.id)}
                     />
                   );
@@ -394,7 +423,7 @@ const LeftPanel: React.FC = observer(() => {
               </CategorySection>
             </CollapsibleSection>
 
-            <CollapsibleSection title="ВЛОЖЕННЫЕ СХЕМЫ" icon="📁" defaultExpanded={true}>
+            {/* <CollapsibleSection title="ВЛОЖЕННЫЕ СХЕМЫ" icon="📁" defaultExpanded={true}>
               <CategorySection>
                 {editorStore.nodes
                   .filter(node => node.type === EditorNodes.SUBSCHEMA)
@@ -415,7 +444,7 @@ const LeftPanel: React.FC = observer(() => {
                   </div>
                 )}
               </CategorySection>
-            </CollapsibleSection>
+            </CollapsibleSection> */}
           </>
         )}
       </TabContent>

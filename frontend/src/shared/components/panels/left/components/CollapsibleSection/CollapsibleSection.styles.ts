@@ -37,7 +37,7 @@ export const SectionTitle = styled.span`
 
 export const SectionTitleNested = styled.span`
   flex: 1;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: ${colors.textLight};
 `;

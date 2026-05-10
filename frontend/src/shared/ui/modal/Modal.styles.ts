@@ -17,8 +17,8 @@ export const ModalOverlay = styled.div`
 export const ModalContainer = styled.div`
   background: ${colors.white};
   border-radius: 16px;
-  min-width: 400px;
-  max-width: 500px;
+  min-width: 600px;
+  max-width: 800px;
   width: 90%;
   box-shadow: 0 20px 40px ${colors.shadow};
   animation: slideIn 0.2s ease;

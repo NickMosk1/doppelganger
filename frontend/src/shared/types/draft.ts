@@ -4,6 +4,7 @@ import { EditorEdge, EditorNode } from "./editor";
 export interface DraftState {
   schemaId: string;
   schemaName: string;
+  schemaDescription: string;  // ← добавляем
   nodes: EditorNode[];
   edges: EditorEdge[];
   lastSavedAt: Nullable<number>;

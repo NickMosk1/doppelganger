@@ -1,26 +1,81 @@
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { colors } from '../../../theme';
 import { DeviceTypes } from '../../../types';
-import Modal from '../Modal';
 import { Button, Input } from '../../../components';
+import Modal from '../Modal';
+
+const ModalContent = styled.div`
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 4px 0;
+  
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: ${colors.background};
+    border-radius: 3px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: ${colors.border};
+    border-radius: 3px;
+  }
+`;
 
 const FormGroup = styled.div`
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 `;
 
 const FormRow = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 16px;
+  margin-bottom: 20px;
 `;
 
-const Select = styled.select`
+const Label = styled.label`
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: ${colors.textLight};
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+`;
+
+const StyledSelect = styled.select`
   width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  padding: 10px 14px;
+  border: 1px solid ${colors.border};
+  border-radius: 10px;
   font-size: 14px;
+  background: ${colors.white};
+  transition: all 0.2s ease;
+  cursor: pointer;
+  
+  &:focus {
+    outline: none;
+    border-color: ${colors.primary};
+    box-shadow: 0 0 0 2px ${colors.primaryLight}40;
+  }
+  
+  &:hover {
+    border-color: ${colors.primaryLight};
+  }
+`;
+
+const RequiredMark = styled.span`
+  color: #ef4444;
+  margin-left: 4px;
+`;
+
+const HelperText = styled.div`
+  font-size: 11px;
+  color: ${colors.textLighter};
+  margin-top: 4px;
 `;
 
 interface AddDeviceModalProps {
@@ -30,7 +85,18 @@ interface AddDeviceModalProps {
   defaultType?: string;
 }
 
-const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ 
+const deviceTypeOptions = [
+  { value: DeviceTypes.ROUTER, label: '🌐 Маршрутизатор', description: 'Для соединения сетей' },
+  { value: DeviceTypes.SWITCH, label: '🔌 Коммутатор', description: 'Для объединения устройств' },
+  { value: DeviceTypes.PLC, label: '⚙️ ПЛК', description: 'Программируемый логический контроллер' },
+  { value: DeviceTypes.SERVER, label: '🖥️ Сервер', description: 'Высокопроизводительный сервер' },
+  { value: DeviceTypes.WORKSTATION, label: '💻 Рабочая станция', description: 'Компьютер сотрудника' },
+  { value: DeviceTypes.FIREWALL, label: '🛡️ Фаервол', description: 'Защита сети' },
+  { value: DeviceTypes.ACCESS_POINT, label: '📡 Точка доступа', description: 'Wi-Fi точка' },
+  { value: DeviceTypes.CUSTOM, label: '🔧 Пользовательское', description: 'Свой тип устройства' },
+];
+
+export const AddDeviceModal: React.FC<AddDeviceModalProps> = ({ 
   isOpen, 
   onClose, 
   onAdd,
@@ -61,7 +127,11 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
   }, [defaultType, isOpen]);
 
   const handleSubmit = () => {
-    // Отправляем все поля, которые ожидает бэкенд
+    if (!formData.name.trim()) {
+      alert('Введите название устройства');
+      return;
+    }
+    
     onAdd({
       name: formData.name,
       type: formData.type,
@@ -115,7 +185,7 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="➕ Добавить устройство"
+      title="Добавить устройство"
       footer={
         <>
           <Button variant="outline" onClick={handleClose}>Отмена</Button>
@@ -123,94 +193,98 @@ const AddDeviceModal: React.FC<AddDeviceModalProps> = ({
         </>
       }
     >
-      <FormGroup>
-        <Input
-          label="Название"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          placeholder="Например: Cisco ISR 4321"
-          required
-          fullWidth
-        />
-      </FormGroup>
-
-      <FormRow>
+      <ModalContent>
         <FormGroup>
-          <label>Тип устройства *</label>
-          <Select 
-            value={formData.type} 
-            onChange={(e) => setFormData({ ...formData, type: e.target.value as DeviceTypes })}
-          >
-            <option value={DeviceTypes.ROUTER}>🌐 Маршрутизатор</option>
-            <option value={DeviceTypes.SWITCH}>🔌 Коммутатор</option>
-            <option value={DeviceTypes.PLC}>⚙️ ПЛК</option>
-            <option value={DeviceTypes.SERVER}>🖥️ Сервер</option>
-            <option value={DeviceTypes.WORKSTATION}>💻 Рабочая станция</option>
-            <option value={DeviceTypes.FIREWALL}>🛡️ Фаервол</option>
-            <option value={DeviceTypes.ACCESS_POINT}>📡 Точка доступа</option>
-            <option value={DeviceTypes.CUSTOM}>🔧 Пользовательское</option>
-          </Select>
-        </FormGroup>
-
-        <FormGroup>
+          <Label>
+            Название <RequiredMark>*</RequiredMark>
+          </Label>
           <Input
-            label="Производитель"
-            value={formData.manufacturer}
-            onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
-            placeholder="Cisco, Siemens, Dell..."
-            fullWidth
-          />
-        </FormGroup>
-      </FormRow>
-
-      <FormRow>
-        <FormGroup>
-          <Input
-            label="Кол-во портов"
-            type="number"
-            min="0"
-            value={formData.portCount}
-            onChange={(e) => setFormData({ ...formData, portCount: Number(e.target.value) })}
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            placeholder="Например: Cisco ISR 4321"
             fullWidth
           />
         </FormGroup>
 
+        <FormRow>
+          <FormGroup>
+            <Label>
+              Тип устройства <RequiredMark>*</RequiredMark>
+            </Label>
+            <StyledSelect 
+              value={formData.type} 
+              onChange={(e) => setFormData({ ...formData, type: e.target.value as DeviceTypes })}
+            >
+              {deviceTypeOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </StyledSelect>
+            <HelperText>
+              {deviceTypeOptions.find(o => o.value === formData.type)?.description}
+            </HelperText>
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Производитель</Label>
+            <Input
+              value={formData.manufacturer}
+              onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
+              placeholder="Cisco, Siemens, Dell..."
+              fullWidth
+            />
+          </FormGroup>
+        </FormRow>
+
+        <FormRow>
+          <FormGroup>
+            <Label>Кол-во портов</Label>
+            <Input
+              type="number"
+              min="0"
+              value={formData.portCount}
+              onChange={(e) => setFormData({ ...formData, portCount: Number(e.target.value) })}
+              fullWidth
+            />
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Базовая задержка (мс)</Label>
+            <Input
+              type="number"
+              step="0.1"
+              min="0"
+              value={formData.baseLatencyMs}
+              onChange={(e) => setFormData({ ...formData, baseLatencyMs: Number(e.target.value) })}
+              fullWidth
+            />
+            <HelperText>Время обработки пакета</HelperText>
+          </FormGroup>
+        </FormRow>
+
+        <FormRow>
+          <FormGroup>
+            <Label>Макс. пропускная способность (Мбит/с)</Label>
+            <Input
+              type="number"
+              step="100"
+              min="0"
+              value={formData.maxThroughputMbps}
+              onChange={(e) => setFormData({ ...formData, maxThroughputMbps: Number(e.target.value) })}
+              fullWidth
+            />
+          </FormGroup>
+        </FormRow>
+
         <FormGroup>
+          <Label>Описание</Label>
           <Input
-            label="Базовая задержка (мс)"
-            type="number"
-            step="0.1"
-            min="0"
-            value={formData.baseLatencyMs}
-            onChange={(e) => setFormData({ ...formData, baseLatencyMs: Number(e.target.value) })}
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            placeholder="Краткое описание устройства..."
             fullWidth
           />
         </FormGroup>
-      </FormRow>
-
-      <FormRow>
-        <FormGroup>
-          <Input
-            label="Макс. пропускная способность (Мбит/с)"
-            type="number"
-            step="100"
-            min="0"
-            value={formData.maxThroughputMbps}
-            onChange={(e) => setFormData({ ...formData, maxThroughputMbps: Number(e.target.value) })}
-            fullWidth
-          />
-        </FormGroup>
-      </FormRow>
-
-      <FormGroup>
-        <Input
-          label="Описание"
-          value={formData.description}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          placeholder="Краткое описание устройства..."
-          fullWidth
-        />
-      </FormGroup>
+      </ModalContent>
     </Modal>
   );
 };

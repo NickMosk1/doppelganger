@@ -7,6 +7,7 @@ import {
   EditorContainer,
   HeaderActions,
   SchemaName,
+  SchemaNameText,
   ActionButtons,
   MainContent,
   DraftIndicator,
@@ -16,17 +17,20 @@ import EditorService from "../../services/editor.service";
 import SimulationService from "../../services/simulation.service";
 import CatalogService from "../../services/catalog.service";
 import { generateDefaultPorts, getDeviceIcon } from "../../shared/components/Canvas/utils";
+import { EditSchemaModal } from "../../shared/ui";
 
 const editorService = new EditorService();
 const simulationService = new SimulationService();
 const catalogService = new CatalogService();
 
-export const SchemaEditorPage: React.FC = observer(() => {
+const SchemaEditorPage: React.FC = observer(() => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { editorStore, draftStore, simulationStore, catalogStore } = useStores();
   const [schemaName, setSchemaName] = useState("");
+  const [schemaDescription, setSchemaDescription] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // Загрузка каталога
   useEffect(() => {
@@ -49,35 +53,34 @@ export const SchemaEditorPage: React.FC = observer(() => {
     };
     loadCatalog();
   }, []);
-useEffect(() => {
+
+  // Загрузка схемы
+  useEffect(() => {
     const loadSchema = async () => {
       if (!id || id === "new") {
-        // Новая схема - создаем черновик
         const newId = `draft-${Date.now()}`;
-        draftStore.createDraft(newId, "Новая схема", [], []);
+        draftStore.createDraft(newId, "Новая схема", "", [], []);
         draftStore.setCurrentDraft(newId);
         editorStore.setCurrentSchemaId(newId);
         setSchemaName("Новая схема");
+        setSchemaDescription("");
         return;
       }
 
-      // Проверяем наличие черновика
       const draft = draftStore.getDraftById(id);
       
       if (draft) {
-        // Загружаем из черновика
         editorStore.setNodes(draft.nodes);
         editorStore.setEdges(draft.edges);
         editorStore.setCurrentSchemaId(id);
         setSchemaName(draft.schemaName);
+        setSchemaDescription(draft.schemaDescription || "");
         draftStore.setCurrentDraft(id);
       } else {
-        // Загружаем с бэка
         editorStore.setLoading(true);
         try {
           const fullSchema = await editorService.getSchemaFull(id);
           
-          // Конвертируем узлы с портами
           const nodes = fullSchema.nodes.map(node => ({
             id: node.id,
             type: node.nodeType,
@@ -90,18 +93,16 @@ useEffect(() => {
             emiOffset: 0,
             vibrationOffset: 0,
             dustOffset: 0,
-            // Генерируем порты для устройств
             ports: node.device ? generateDefaultPorts(node.device.type) : undefined,
             icon: node.device?.type ? getDeviceIcon(node.device.type) : "📡",
           }));
 
-          // Конвертируем связи с новыми полями
           const edges = fullSchema.connections.map(conn => ({
             id: conn.id,
-            source: conn.sourceNode.id,      // ID порта источника
-            target: conn.targetNode.id,      // ID порта назначения
-            sourceNodeId: conn.sourceNode.id, // ID узла-источника (добавляем)
-            targetNodeId: conn.targetNode.id, // ID узла-назначения (добавляем)
+            source: conn.sourceNode.id,
+            target: conn.targetNode.id,
+            sourceNodeId: conn.sourceNode.id,
+            targetNodeId: conn.targetNode.id,
             cableId: conn.cable?.id,
             lengthM: conn.lengthM,
             isActive: true,
@@ -111,9 +112,9 @@ useEffect(() => {
           editorStore.setEdges(edges);
           editorStore.setCurrentSchemaId(id);
           setSchemaName(fullSchema.name);
+          setSchemaDescription(fullSchema.description || "");
 
-          // Создаем черновик
-          draftStore.createDraft(id, fullSchema.name, nodes, edges);
+          draftStore.createDraft(id, fullSchema.name, fullSchema.description || "", nodes, edges);
           draftStore.markAsSaved(id);
         } catch (error) {
           console.error("Failed to load schema:", error);
@@ -124,22 +125,15 @@ useEffect(() => {
     };
 
     loadSchema();
-
-    return () => {
-      // Не очищаем editorStore при размонтировании, чтобы сохранить черновик
-    };
   }, [id]);
 
-  // Автосохранение черновика при изменениях (debounced)
-  // src/pages/schema-editor/SchemaEditorPage.tsx
-
-  // Автосохранение черновика при изменениях
   const autoSaveDraft = useCallback(
-    debounce((schemaId: string, name: string, nodes: any[], edges: any[]) => {
+    debounce((schemaId: string, name: string, description: string, nodes: any[], edges: any[]) => {
       if (schemaId) {
         console.log("📝 Auto-saving draft:", { nodesCount: nodes.length, edgesCount: edges.length });
         draftStore.updateDraft(schemaId, {
           schemaName: name,
+          schemaDescription: description,
           nodes: nodes,
           edges: edges,
         });
@@ -148,13 +142,41 @@ useEffect(() => {
     []
   );
 
-  // Следим за изменениями узлов И связей
   useEffect(() => {
     if (draftStore.currentDraft && id) {
-      console.log("🔄 Changes detected - auto-saving");
-      autoSaveDraft(id, schemaName, editorStore.nodes, editorStore.edges);
+      autoSaveDraft(id, schemaName, schemaDescription, editorStore.nodes, editorStore.edges);
     }
-  }, [editorStore.nodes, editorStore.edges, schemaName, id, autoSaveDraft]);
+  }, [editorStore.nodes, editorStore.edges, schemaName, schemaDescription, id, autoSaveDraft]);
+
+  const handleOpenEditModal = () => {
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async (newName: string, newDescription: string) => {
+    setSchemaName(newName);
+    setSchemaDescription(newDescription);
+    
+    // Сохраняем в черновик
+    if (draftStore.currentDraft && id) {
+      draftStore.updateDraft(id, {
+        schemaName: newName,
+        schemaDescription: newDescription,
+      });
+    }
+    
+    // Если схема уже сохранена на бэке, обновляем её
+    if (id && id !== "new" && !id.startsWith("draft-")) {
+      try {
+        await editorService.updateSchema(id, {
+          name: newName,
+          description: newDescription
+        });
+        console.log("✅ Schema updated on backend");
+      } catch (error) {
+        console.error("Failed to update schema on backend:", error);
+      }
+    }
+  };
 
   const handleValidate = async () => {
     if (!id || id === "new") {
@@ -192,7 +214,6 @@ useEffect(() => {
       
       simulationStore.setCurrentResult(result);
       
-      // Показываем результат
       const grade = result.summary?.grade || "F";
       const maxLatency = result.summary?.maxLatencyMs || 0;
       alert(`Симуляция завершена!\nОценка: ${grade}\nМакс. задержка: ${maxLatency} мс`);
@@ -226,76 +247,20 @@ useEffect(() => {
     }
   };
 
-  // const handleSave = async () => {
-  //   if (!id || id === "new") {
-  //     // Создаем новую схему на бэке
-  //     setIsSaving(true);
-  //     try {
-  //       // 1. Создаем схему
-  //       const newSchema = await editorService.createSchema(schemaName, "", false);
-        
-  //       // 2. Сохраняем все узлы
-  //       const nodeIdMap = new Map(); // маппинг временных ID на реальные
-  //       for (const node of editorStore.nodes) {
-  //         if (node.type === "DEVICE" && node.deviceId) {
-  //           const savedNode = await editorService.createNode(
-  //             newSchema.id, 
-  //             node.deviceId, 
-  //             node.position, 
-  //             node.customName
-  //           );
-  //           nodeIdMap.set(node.id, savedNode.id);
-  //         }
-  //       }
-        
-  //       // 3. Сохраняем все связи (с обновленными ID узлов)
-  //       for (const edge of editorStore.edges) {
-  //         const realSourceId = nodeIdMap.get(edge.sourceNodeId) || edge.sourceNodeId;
-  //         const realTargetId = nodeIdMap.get(edge.targetNodeId) || edge.targetNodeId;
-          
-  //         await editorService.createConnection(
-  //           newSchema.id,
-  //           realSourceId,
-  //           realTargetId,
-  //           edge.lengthM  // только длина кабеля
-  //         );
-  //       }
-        
-  //       // 4. Обновляем черновик
-  //       draftStore.markAsSaved(newSchema.id);
-  //       draftStore.clearDraft(id as any);
-  //       editorStore.setCurrentSchemaId(newSchema.id);
-  //       navigate(`/editor/${newSchema.id}`, { replace: true });
-        
-  //     } catch (error) {
-  //       console.error("Failed to save schema:", error);
-  //     } finally {
-  //       setIsSaving(false);
-  //     }
-  //   }
-  // };
-
   const nodesLengthRef = useRef(editorStore.nodes.length);
   const edgesLengthRef = useRef(editorStore.edges.length);
 
-  // Форсированное сохранение черновика
   const saveDraftToLocalStorage = useCallback(() => {
     if (draftStore.currentDraft && id) {
-      console.log("💾 Saving draft to localStorage:", {
-        nodes: editorStore.nodes.length,
-        edges: editorStore.edges.length,
-        name: schemaName
-      });
-      
       draftStore.updateDraft(id, {
         schemaName: schemaName,
+        schemaDescription: schemaDescription,
         nodes: JSON.parse(JSON.stringify(editorStore.nodes)),
         edges: JSON.parse(JSON.stringify(editorStore.edges)),
       });
     }
-  }, [id, schemaName, editorStore.nodes, editorStore.edges, draftStore]);
+  }, [id, schemaName, schemaDescription, editorStore.nodes, editorStore.edges, draftStore]);
 
-  // Следим за изменениями через ref
   useEffect(() => {
     const interval = setInterval(() => {
       const currentNodesLength = editorStore.nodes.length;
@@ -313,36 +278,20 @@ useEffect(() => {
     return () => clearInterval(interval);
   }, [editorStore.nodes.length, editorStore.edges.length, saveDraftToLocalStorage]);
 
-  // Загрузка схемы
-  useEffect(() => {
-    const loadSchema = async () => {
-      // ... существующий код loadSchema
-    };
-    loadSchema();
-  }, [id]);
-
-  // Принудительное сохранение на бэк
   const handleSave = async () => {
     console.log("=== HANDLE SAVE CALLED ===");
-    console.log("Schema ID:", id);
-    console.log("Nodes:", editorStore.nodes.length);
-    console.log("Edges:", editorStore.edges.length);
     
     if (!id || id === "new") {
       setIsSaving(true);
       try {
-        // Создаем новую схему
-        const newSchema = await editorService.createSchema(schemaName, "", false);
-        console.log("✅ Schema created:", newSchema);
+        const newSchema = await editorService.createSchema(schemaName, schemaDescription, false);
         
-        // Сохраняем узлы
         for (const node of editorStore.nodes) {
           if (node.type === "DEVICE" && node.deviceId) {
             await editorService.createNode(newSchema.id, node.deviceId, node.position, node.customName);
           }
         }
         
-        // Сохраняем связи
         for (const edge of editorStore.edges) {
           await editorService.createConnection(newSchema.id, edge.sourceNodeId, edge.targetNodeId, edge.lengthM);
         }
@@ -357,13 +306,14 @@ useEffect(() => {
         setIsSaving(false);
       }
     } else {
-      // Обновляем существующую схему
       setIsSaving(true);
       try {
-        await editorService.updateSchema(id, { name: schemaName });
+        await editorService.updateSchema(id, { name: schemaName, description: schemaDescription });
+        draftStore.markAsSaved(id);
         alert("Схема сохранена!");
       } catch (error) {
         console.error("Failed to save schema:", error);
+        alert("Ошибка при сохранении");
       } finally {
         setIsSaving(false);
       }
@@ -375,17 +325,12 @@ useEffect(() => {
       <HeaderActions>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <SchemaName>
-            <input
-              type="text"
-              value={schemaName}
-              onChange={(e) => setSchemaName(e.target.value)}
-              placeholder="Название схемы"
-            />
+            <SchemaNameText onClick={handleOpenEditModal}>
+              {schemaName}
+            </SchemaNameText>
           </SchemaName>
           {draftStore.hasLocalChanges && (
-            <DraftIndicator>
-              Черновик
-            </DraftIndicator>
+            <DraftIndicator>Черновик</DraftIndicator>
           )}
           {draftStore.lastValidationTime && draftStore.validationErrors.length === 0 && (
             <DraftIndicator $isValid>
@@ -399,18 +344,12 @@ useEffect(() => {
           )}
         </div>
         <ActionButtons>
-          <Button variant="outline" onClick={handleValidate}>
-            Валидация
-          </Button>
+          <Button variant="outline" onClick={handleValidate}>Валидация</Button>
           <Button variant="outline" onClick={handleRunSimulation} disabled={simulationStore.isRunning}>
             {simulationStore.isRunning ? "Симуляция..." : "Симуляция"}
           </Button>
-          <Button variant="outline" onClick={handleShowHistory}>
-            История
-          </Button>
-          <Button onClick={handleSave} loading={isSaving}>
-            Сохранить
-          </Button>
+          <Button variant="outline" onClick={handleShowHistory}>История</Button>
+          <Button onClick={handleSave} loading={isSaving}>Сохранить</Button>
         </ActionButtons>
       </HeaderActions>
 
@@ -419,6 +358,14 @@ useEffect(() => {
         <NetworkCanvas schemaId={id || "new"} />
         <RightPanel />
       </MainContent>
+
+      <EditSchemaModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        onSave={handleSaveEdit}
+        initialName={schemaName}
+        initialDescription={schemaDescription}
+      />
     </EditorContainer>
   );
 });

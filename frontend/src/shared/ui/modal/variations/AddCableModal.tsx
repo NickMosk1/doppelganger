@@ -1,41 +1,88 @@
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { colors } from '../../../theme';
 import { CableTypes } from '../../../types';
-import Modal from '../Modal';
 import { Button, Input } from '../../../components';
+import Modal from '../Modal';
+
+const ModalContent = styled.div`
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 4px 0;
+  
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: ${colors.background};
+    border-radius: 3px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: ${colors.border};
+    border-radius: 3px;
+  }
+`;
 
 const FormGroup = styled.div`
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 `;
 
 const FormRow = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 16px;
+  margin-bottom: 20px;
 `;
 
 const FormRow3 = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 16px;
-`;
-
-const Select = styled.select`
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  font-size: 14px;
+  gap: 16px;
+  margin-bottom: 20px;
 `;
 
 const Label = styled.label`
   display: block;
   font-size: 12px;
   font-weight: 500;
-  color: #666;
+  color: ${colors.textLight};
   margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+`;
+
+const StyledSelect = styled.select`
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid ${colors.border};
+  border-radius: 10px;
+  font-size: 14px;
+  background: ${colors.white};
+  transition: all 0.2s ease;
+  cursor: pointer;
+  
+  &:focus {
+    outline: none;
+    border-color: ${colors.primary};
+    box-shadow: 0 0 0 2px ${colors.primaryLight}40;
+  }
+  
+  &:hover {
+    border-color: ${colors.primaryLight};
+  }
+`;
+
+const RequiredMark = styled.span`
+  color: #ef4444;
+  margin-left: 4px;
+`;
+
+const HelperText = styled.div`
+  font-size: 11px;
+  color: ${colors.textLighter};
+  margin-top: 4px;
 `;
 
 interface AddCableModalProps {
@@ -45,7 +92,23 @@ interface AddCableModalProps {
   defaultType?: CableTypes;
 }
 
-const AddCableModal: React.FC<AddCableModalProps> = ({ 
+const cableTypeOptions = [
+  { value: CableTypes.COPPER, label: '🔌 Медный', description: 'Стандартный медный кабель' },
+  { value: CableTypes.FIBER, label: '💡 Оптоволокно', description: 'Высокоскоростной, помехозащищенный' },
+  { value: CableTypes.TWISTED_PAIR, label: '🔄 Витая пара', description: 'UTP/FTP кабель' },
+  { value: CableTypes.COAXIAL, label: '📺 Коаксиальный', description: 'Для видеонаблюдения' },
+  { value: CableTypes.SHIELDED, label: '🛡️ Экранированный', description: 'Защита от помех' },
+  { value: CableTypes.INDUSTRIAL, label: '🏭 Промышленный', description: 'Для тяжелых условий' },
+];
+
+const shieldingTypeOptions = [
+  { value: 0, label: 'Без экрана' },
+  { value: 1, label: 'Фольга' },
+  { value: 2, label: 'Оплетка' },
+  { value: 3, label: 'Двойной экран' },
+];
+
+export const AddCableModal: React.FC<AddCableModalProps> = ({ 
   isOpen, 
   onClose, 
   onAdd,
@@ -79,7 +142,11 @@ const AddCableModal: React.FC<AddCableModalProps> = ({
   }, [defaultType, isOpen]);
 
   const handleSubmit = () => {
-    // Отправляем все поля, которые ожидает бэкенд
+    if (!formData.name.trim()) {
+      alert('Введите название кабеля');
+      return;
+    }
+    
     onAdd({
       name: formData.name,
       type: formData.type,
@@ -137,27 +204,11 @@ const AddCableModal: React.FC<AddCableModalProps> = ({
     });
   };
 
-  const cableTypeOptions = [
-    { value: CableTypes.COPPER, label: 'Медный' },
-    { value: CableTypes.FIBER, label: 'Оптоволокно' },
-    { value: CableTypes.TWISTED_PAIR, label: 'Витая пара' },
-    { value: CableTypes.COAXIAL, label: 'Коаксиальный' },
-    { value: CableTypes.SHIELDED, label: 'Экранированный' },
-    { value: CableTypes.INDUSTRIAL, label: 'Промышленный' },
-  ];
-
-  const shieldingTypeOptions = [
-    { value: 0, label: 'Без экрана' },
-    { value: 1, label: 'Фольга' },
-    { value: 2, label: 'Оплетка' },
-    { value: 3, label: 'Двойной экран' },
-  ];
-
   return (
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="➕ Добавить кабель"
+      title="Добавить кабель"
       footer={
         <>
           <Button variant="outline" onClick={handleClose}>Отмена</Button>
@@ -165,175 +216,187 @@ const AddCableModal: React.FC<AddCableModalProps> = ({
         </>
       }
     >
-      <FormGroup>
-        <Input
-          label="Название *"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          placeholder="Например: UTP Cat6"
-          required
-          fullWidth
-        />
-      </FormGroup>
-
-      <FormRow>
+      <ModalContent>
         <FormGroup>
-          <Label>Тип кабеля *</Label>
-          <Select
-            value={formData.type}
-            onChange={(e) => setFormData({ ...formData, type: e.target.value as CableTypes })}
-          >
-            {cableTypeOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </Select>
-        </FormGroup>
-
-        <FormGroup>
+          <Label>
+            Название <RequiredMark>*</RequiredMark>
+          </Label>
           <Input
-            label="Производитель"
-            value={formData.manufacturer}
-            onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
-            placeholder="Belden, Corning..."
-            fullWidth
-          />
-        </FormGroup>
-      </FormRow>
-
-      <FormRow>
-        <FormGroup>
-          <Input
-            label="Модель"
-            value={formData.model}
-            onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-            placeholder="Модель кабеля"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            placeholder="Например: UTP Cat6"
             fullWidth
           />
         </FormGroup>
 
+        <FormRow>
+          <FormGroup>
+            <Label>
+              Тип кабеля <RequiredMark>*</RequiredMark>
+            </Label>
+            <StyledSelect
+              value={formData.type}
+              onChange={(e) => setFormData({ ...formData, type: e.target.value as CableTypes })}
+            >
+              {cableTypeOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </StyledSelect>
+            <HelperText>
+              {cableTypeOptions.find(o => o.value === formData.type)?.description}
+            </HelperText>
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Производитель</Label>
+            <Input
+              value={formData.manufacturer}
+              onChange={(e) => setFormData({ ...formData, manufacturer: e.target.value })}
+              placeholder="Belden, Corning..."
+              fullWidth
+            />
+          </FormGroup>
+        </FormRow>
+
+        <FormRow>
+          <FormGroup>
+            <Label>Модель</Label>
+            <Input
+              value={formData.model}
+              onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+              placeholder="Модель кабеля"
+              fullWidth
+            />
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Макс. длина (м)</Label>
+            <Input
+              type="number"
+              step="10"
+              min="0"
+              value={formData.maxLengthM}
+              onChange={(e) => setFormData({ ...formData, maxLengthM: Number(e.target.value) })}
+              fullWidth
+            />
+          </FormGroup>
+        </FormRow>
+
+        <FormRow>
+          <FormGroup>
+            <Label>Затухание (дБ/км)</Label>
+            <Input
+              type="number"
+              step="0.1"
+              min="0"
+              value={formData.attenuationDbPerKm}
+              onChange={(e) => setFormData({ ...formData, attenuationDbPerKm: Number(e.target.value) })}
+              fullWidth
+            />
+            <HelperText>Чем меньше, тем лучше</HelperText>
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Скорость распространения (%)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              max="1"
+              value={formData.propagationSpeed}
+              onChange={(e) => setFormData({ ...formData, propagationSpeed: Number(e.target.value) })}
+              fullWidth
+            />
+          </FormGroup>
+        </FormRow>
+
+        <FormRow>
+          <FormGroup>
+            <Label>Импеданс (Ом)</Label>
+            <Input
+              type="number"
+              step="5"
+              min="0"
+              value={formData.impedanceOhms}
+              onChange={(e) => setFormData({ ...formData, impedanceOhms: Number(e.target.value) })}
+              fullWidth
+            />
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Диаметр жилы (мкм)</Label>
+            <Input
+              type="number"
+              step="0.1"
+              min="0"
+              value={formData.coreDiameterUm || ''}
+              onChange={(e) => setFormData({ ...formData, coreDiameterUm: e.target.value ? Number(e.target.value) : null })}
+              fullWidth
+            />
+          </FormGroup>
+        </FormRow>
+
+        <FormRow3>
+          <FormGroup>
+            <Label>Помехоустойчивость (1-10)</Label>
+            <Input
+              type="number"
+              min="1"
+              max="10"
+              value={formData.immunityRating}
+              onChange={(e) => setFormData({ ...formData, immunityRating: Number(e.target.value) })}
+              fullWidth
+            />
+            <HelperText>Чем выше, тем лучше</HelperText>
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Раб. температура (°C)</Label>
+            <Input
+              type="number"
+              value={formData.temperatureRating}
+              onChange={(e) => setFormData({ ...formData, temperatureRating: Number(e.target.value) })}
+              fullWidth
+            />
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Тип экранирования</Label>
+            <StyledSelect
+              value={formData.shieldingType}
+              onChange={(e) => setFormData({ ...formData, shieldingType: Number(e.target.value) })}
+            >
+              {shieldingTypeOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </StyledSelect>
+          </FormGroup>
+        </FormRow3>
+
+        <FormRow>
+          <FormGroup>
+            <Label>Цена (₽/м)</Label>
+            <Input
+              type="number"
+              step="5"
+              min="0"
+              value={formData.pricePerMeter}
+              onChange={(e) => setFormData({ ...formData, pricePerMeter: Number(e.target.value) })}
+              fullWidth
+            />
+          </FormGroup>
+        </FormRow>
+
         <FormGroup>
+          <Label>Описание</Label>
           <Input
-            label="Макс. длина (м)"
-            type="number"
-            step="10"
-            min="0"
-            value={formData.maxLengthM}
-            onChange={(e) => setFormData({ ...formData, maxLengthM: Number(e.target.value) })}
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            placeholder="Краткое описание кабеля..."
             fullWidth
           />
         </FormGroup>
-      </FormRow>
-
-      <FormRow>
-        <FormGroup>
-          <Input
-            label="Затухание (дБ/км)"
-            type="number"
-            step="0.1"
-            min="0"
-            value={formData.attenuationDbPerKm}
-            onChange={(e) => setFormData({ ...formData, attenuationDbPerKm: Number(e.target.value) })}
-            fullWidth
-          />
-        </FormGroup>
-
-        <FormGroup>
-          <Input
-            label="Скорость распространения (%)"
-            type="number"
-            step="0.01"
-            min="0"
-            max="1"
-            value={formData.propagationSpeed}
-            onChange={(e) => setFormData({ ...formData, propagationSpeed: Number(e.target.value) })}
-            fullWidth
-          />
-        </FormGroup>
-      </FormRow>
-
-      <FormRow>
-        <FormGroup>
-          <Input
-            label="Импеданс (Ом)"
-            type="number"
-            step="5"
-            min="0"
-            value={formData.impedanceOhms}
-            onChange={(e) => setFormData({ ...formData, impedanceOhms: Number(e.target.value) })}
-            fullWidth
-          />
-        </FormGroup>
-
-        <FormGroup>
-          <Input
-            label="Диаметр жилы (мкм)"
-            type="number"
-            step="0.1"
-            min="0"
-            value={formData.coreDiameterUm || ''}
-            onChange={(e) => setFormData({ ...formData, coreDiameterUm: e.target.value ? Number(e.target.value) : null })}
-            fullWidth
-          />
-        </FormGroup>
-      </FormRow>
-
-      <FormRow3>
-        <FormGroup>
-          <Input
-            label="Помехоустойчивость (1-10)"
-            type="number"
-            min="1"
-            max="10"
-            value={formData.immunityRating}
-            onChange={(e) => setFormData({ ...formData, immunityRating: Number(e.target.value) })}
-            fullWidth
-          />
-        </FormGroup>
-
-        <FormGroup>
-          <Input
-            label="Раб. температура (°C)"
-            type="number"
-            value={formData.temperatureRating}
-            onChange={(e) => setFormData({ ...formData, temperatureRating: Number(e.target.value) })}
-            fullWidth
-          />
-        </FormGroup>
-
-        <FormGroup>
-          <Label>Тип экранирования</Label>
-          <Select
-            value={formData.shieldingType}
-            onChange={(e) => setFormData({ ...formData, shieldingType: Number(e.target.value) })}
-          >
-            {shieldingTypeOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </Select>
-        </FormGroup>
-      </FormRow3>
-
-      <FormGroup>
-        <Input
-          label="Цена (₽/м)"
-          type="number"
-          step="5"
-          min="0"
-          value={formData.pricePerMeter}
-          onChange={(e) => setFormData({ ...formData, pricePerMeter: Number(e.target.value) })}
-          fullWidth
-        />
-      </FormGroup>
-
-      <FormGroup>
-        <Input
-          label="Описание"
-          value={formData.description}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          placeholder="Краткое описание кабеля..."
-          fullWidth
-        />
-      </FormGroup>
+      </ModalContent>
     </Modal>
   );
 };
