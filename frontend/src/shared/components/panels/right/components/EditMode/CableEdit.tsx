@@ -1,6 +1,9 @@
+// src/shared/components/RightPanel/components/EditMode/CableEdit.tsx
+
 import React, { useState, useEffect } from 'react';
 import { EditorNode } from '../../../../../types';
 import { PropertyGroup, PropertyLabel, PropertyInput } from '../../RightPanel.styles';
+import { debounce } from 'lodash';
 
 interface CableEditProps {
   node: EditorNode;
@@ -14,18 +17,21 @@ const CableEdit: React.FC<CableEditProps> = ({ node, onDataChange, initialData }
     lengthM: initialData?.lengthM !== undefined ? initialData.lengthM : (node.lengthM || 10),
   });
 
-  // Обновляем форму при изменении initialData
-  useEffect(() => {
-    setFormData({
-      customName: initialData?.customName !== undefined ? initialData.customName : (node.customName || node.name),
-      lengthM: initialData?.lengthM !== undefined ? initialData.lengthM : (node.lengthM || 10),
-    });
-  }, [initialData, node.customName, node.name, node.lengthM]);
+  // Дебаунс для отправки изменений
+  const debouncedOnDataChange = React.useCallback(
+    debounce((data: any) => {
+      onDataChange(data);
+    }, 300),
+    [onDataChange]
+  );
 
-  // Отправляем изменения при каждом обновлении формы
+  // Отправляем изменения только когда formData реально меняется (пользователем)
   useEffect(() => {
-    onDataChange(formData);
-  }, [formData, onDataChange]);
+    debouncedOnDataChange(formData);
+    return () => {
+      debouncedOnDataChange.cancel();
+    };
+  }, [formData, debouncedOnDataChange]);
 
   const handleChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));

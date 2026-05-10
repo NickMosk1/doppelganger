@@ -43,7 +43,32 @@ public class SchemaNode {
     private LocalDateTime updatedAt;
     
     public enum NodeType {
-        DEVICE, SUBSCHEMA
+        DEVICE,
+        SUBSCHEMA,
+        CABLE
+    }
+    
+    @Column(name = "cable_length_m")
+    private Double cableLengthM;
+
+    @Column(name = "cable_type", length = 50)
+    private String cableType;
+
+    // Getters and Setters
+    public Double getCableLengthM() {
+        return cableLengthM;
+    }
+
+    public void setCableLengthM(Double cableLengthM) {
+        this.cableLengthM = cableLengthM;
+    }
+
+    public String getCableType() {
+        return cableType;
+    }
+
+    public void setCableType(String cableType) {
+        this.cableType = cableType;
     }
     
     @PrePersist

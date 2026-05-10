@@ -16,7 +16,6 @@ public class SchemaFullDto {
     private String description;
     private Integer depth;
     private String path;
-    
     private List<NodeDto> nodes;
     private List<ConnectionDto> connections;
     
@@ -31,6 +30,8 @@ public class SchemaFullDto {
         private Double positionX;
         private Double positionY;
         private DeviceDto device;
+        private Double cableLengthM;
+        private String cableType;
         
         @Data
         @Builder
@@ -57,6 +58,8 @@ public class SchemaFullDto {
         private NodeRefDto sourceNode;
         private NodeRefDto targetNode;
         private CableDto cable;
+        private String sourcePortId;
+        private String targetPortId;
         
         @Data
         @Builder

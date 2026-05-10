@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { observer } from "mobx-react-lite";
-import { useNavigate } from "react-router-dom";
 import {
   HomeContainer,
   WelcomeSection,
@@ -10,25 +9,14 @@ import {
   StatCard,
   StatValue,
   StatLabel,
-  SchemasSection,
-  SectionHeader,
-  SchemasGrid,
-  SchemaCard,
-  SchemaCardHeader,
-  SchemaCardTitle,
-  SchemaCardDate,
-  SchemaCardActions,
-  EmptyState,
   LoadingState,
 } from "./HomePage.styles";
-import { Button } from "../../shared";
 import SchemaService from "../../services/schema.service";
 import { useStores } from "../../hooks";
 
 const schemaService = new SchemaService();
 
-export const HomePage: React.FC = observer(() => {
-  const navigate = useNavigate();
+const HomePage: React.FC = observer(() => {
   const { userStore, schemaStore } = useStores();
   const [loading, setLoading] = useState(true);
 
@@ -48,27 +36,6 @@ export const HomePage: React.FC = observer(() => {
 
     fetchSchemas();
   }, []);
-
-  const handleCreateSchema = async () => {
-    try {
-      const newSchema = await schemaService.createSchema("Новая схема", "", false);
-      schemaStore.addSchema(newSchema);
-      navigate(`/editor/${newSchema.id}`);
-    } catch (error) {
-      console.error("Failed to create schema:", error);
-    }
-  };
-
-  const handleDeleteSchema = async (id: string) => {
-    if (window.confirm("Удалить схему? Это действие нельзя отменить.")) {
-      try {
-        await schemaService.deleteSchema(id);
-        schemaStore.removeSchema(id);
-      } catch (error) {
-        console.error("Failed to delete schema:", error);
-      }
-    }
-  };
 
   if (loading || schemaStore.isLoading) {
     return <LoadingState>Загрузка ваших схем...</LoadingState>;
@@ -98,51 +65,6 @@ export const HomePage: React.FC = observer(() => {
           <StatLabel>{userStore.user?.role === "ADMIN" ? "Администратор" : "Инженер"}</StatLabel>
         </StatCard>
       </StatsGrid>
-
-      <SchemasSection>
-        <SectionHeader>
-          <h2>Мои схемы</h2>
-          <Button onClick={handleCreateSchema}>+ Новая схема</Button>
-        </SectionHeader>
-
-        {schemaStore.schemas.length === 0 ? (
-          <EmptyState>
-            <p>У вас пока нет схем</p>
-            <Button onClick={handleCreateSchema}>Создать первую схему</Button>
-          </EmptyState>
-        ) : (
-          <SchemasGrid>
-            {schemaStore.schemas.map((schema) => (
-              <SchemaCard key={schema.id}>
-                <SchemaCardHeader>
-                  <SchemaCardTitle>{schema.name}</SchemaCardTitle>
-                  <SchemaCardDate>
-                    {new Date(schema.createdAt).toLocaleDateString("ru-RU")}
-                  </SchemaCardDate>
-                </SchemaCardHeader>
-                <p>{schema.description || "Нет описания"}</p>
-                {schema.isPublic && <span>🌍 Публичная</span>}
-                <SchemaCardActions>
-                  <Button
-                    variant="outline"
-                    size="small"
-                    onClick={() => navigate(`/editor/${schema.id}`)}
-                  >
-                    Редактировать
-                  </Button>
-                  <Button
-                    variant="text"
-                    size="small"
-                    onClick={() => handleDeleteSchema(schema.id)}
-                  >
-                    Удалить
-                  </Button>
-                </SchemaCardActions>
-              </SchemaCard>
-            ))}
-          </SchemasGrid>
-        )}
-      </SchemasSection>
     </HomeContainer>
   );
 });

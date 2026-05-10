@@ -5,6 +5,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 @Entity
 @Table(name = "schemas", indexes = {
     @Index(name = "idx_schema_user", columnList = "user_id"),
@@ -12,7 +14,7 @@ import java.util.List;
     @Index(name = "idx_schema_public", columnList = "is_public")
 })
 public class Schema {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
@@ -39,13 +41,16 @@ public class Schema {
     @JoinColumn(name = "parent_schema_id")
     private Schema parentSchema;
     
-    @OneToMany(mappedBy = "parentSchema", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "parentSchema", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
     private List<Schema> childrenSchemas = new ArrayList<>();
-    
-    @OneToMany(mappedBy = "schema", cascade = CascadeType.ALL)
+
+    @OneToMany(mappedBy = "schema", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
     private List<SchemaNode> nodes = new ArrayList<>();
-    
-    @OneToMany(mappedBy = "schema", cascade = CascadeType.ALL)
+
+    @OneToMany(mappedBy = "schema", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
     private List<Connection> connections = new ArrayList<>();
     
     private String path;

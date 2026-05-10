@@ -3,11 +3,6 @@ import { SchemaSummary, SchemaFull, SchemaStats } from "../shared/types/schema";
 
 class SchemaService {
 
-  async getAllSchemas(): Promise<SchemaSummary[]> {
-    const response = await api.get<SchemaSummary[]>('/schemas');
-    return response.data;
-  }
-
   async getSchemasByUser(userId: string): Promise<SchemaSummary[]> {
     const response = await api.get<SchemaSummary[]>(`/schemas/user/${userId}`);
     return response.data;
@@ -51,13 +46,35 @@ class SchemaService {
     await api.post(`/schemas/${schemaId}/last-opened`);
   }
 
-  async getSchemaStats(schemaId: string): Promise<{
-    nodesCount: number;
-    connectionsCount: number;
-    devicesCount: number;
-    cablesCount: number;
-  }> {
-    const response = await api.get(`/schemas/${schemaId}/stats`);
+  async getAllSchemas(): Promise<SchemaSummary[]> {
+    const response = await api.get<SchemaSummary[]>('/schemas');
+    
+    // Для каждой схемы подгружаем статистику
+    const schemasWithStats = await Promise.all(
+      response.data.map(async (schema) => {
+        try {
+          const stats = await this.getSchemaStats(schema.id);
+          return {
+            ...schema,
+            nodesCount: stats.nodesCount,
+            connectionsCount: stats.connectionsCount,
+          };
+        } catch (error) {
+          console.error(`Failed to load stats for schema ${schema.id}:`, error);
+          return {
+            ...schema,
+            nodesCount: 0,
+            connectionsCount: 0,
+          };
+        }
+      })
+    );
+    
+    return schemasWithStats;
+  }
+
+  async getSchemaStats(id: string): Promise<SchemaStats> {
+    const response = await api.get<SchemaStats>(`/schemas/${id}/stats`);
     return response.data;
   }
 }

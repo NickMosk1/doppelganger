@@ -42,37 +42,6 @@ public class SchemaNodeService {
         return schemaNodeRepository.findByDeviceId(deviceId);
     }
     
-    // Добавить устройство на схему (создать узел)
-    @Transactional
-    public SchemaNode addDeviceToSchema(String schemaId, String deviceId, 
-                                         Double positionX, Double positionY,
-                                         String customName) {
-        log.info("Adding device {} to schema {}", deviceId, schemaId);
-        
-        Schema schema = schemaRepository.findById(schemaId)
-            .orElseThrow(() -> new ResourceNotFoundException("Schema not found: " + schemaId));
-        
-        Device device = deviceRepository.findById(deviceId)
-            .orElseThrow(() -> new ResourceNotFoundException("Device not found: " + deviceId));
-        
-        SchemaNode node = new SchemaNode();
-        node.setSchema(schema);
-        node.setDevice(device);
-        node.setNodeType(SchemaNode.NodeType.DEVICE);
-        node.setPositionX(positionX != null ? positionX : 0.0);
-        node.setPositionY(positionY != null ? positionY : 0.0);
-        node.setCustomName(customName);
-        node.setIsEnabled(true);
-        
-        // Наследуем коэффициенты от устройства
-        node.setTemperatureOffset(device.getTempCoefficient() != null ? device.getTempCoefficient() : 1.0);
-        node.setEmiOffset(device.getEmiCoefficient() != null ? device.getEmiCoefficient() : 1.0);
-        node.setVibrationOffset(device.getVibrationCoefficient() != null ? device.getVibrationCoefficient() : 1.0);
-        node.setDustOffset(device.getDustCoefficient() != null ? device.getDustCoefficient() : 1.0);
-        
-        return schemaNodeRepository.save(node);
-    }
-    
     // Добавить под-схему как узел (вложенность)
     @Transactional
     public SchemaNode addSubSchemaToSchema(String parentSchemaId, String childSchemaId,
@@ -174,5 +143,55 @@ public class SchemaNodeService {
         return nodes.stream()
             .filter(n -> n.getNodeType() == SchemaNode.NodeType.DEVICE)
             .count();
+    }
+
+    @Transactional
+    public SchemaNode addDeviceToSchema(String schemaId, String deviceId, 
+                                        Double posX, Double posY, String customName) {
+        log.info("Adding device to schema: schemaId={}, deviceId={}", schemaId, deviceId);
+        
+        Schema schema = schemaRepository.findById(schemaId)
+            .orElseThrow(() -> new ResourceNotFoundException("Schema not found: " + schemaId));
+        
+        Device device = deviceRepository.findById(deviceId)
+            .orElseThrow(() -> new ResourceNotFoundException("Device not found: " + deviceId));
+        
+        SchemaNode node = new SchemaNode();
+        node.setSchema(schema);
+        node.setDevice(device);
+        node.setNodeType(SchemaNode.NodeType.DEVICE);
+        node.setCustomName(customName != null ? customName : device.getName());
+        node.setPositionX(posX != null ? posX : 0.0);
+        node.setPositionY(posY != null ? posY : 0.0);
+        node.setIsEnabled(true);
+        
+        SchemaNode saved = schemaNodeRepository.save(node);
+        log.info("Device saved with id: {}", saved.getId());
+        
+        return saved;
+    }
+
+    @Transactional
+    public SchemaNode addCableToSchema(String schemaId, String name, String customName, 
+                                        Double posX, Double posY, Double lengthM, String cableType) {
+        log.info("Adding cable to schema: schemaId={}, name={}", schemaId, name);
+        
+        Schema schema = schemaRepository.findById(schemaId)
+            .orElseThrow(() -> new ResourceNotFoundException("Schema not found: " + schemaId));
+        
+        SchemaNode node = new SchemaNode();
+        node.setSchema(schema);
+        node.setNodeType(SchemaNode.NodeType.CABLE);
+        node.setCustomName(customName != null ? customName : name);
+        node.setPositionX(posX != null ? posX : 0.0);
+        node.setPositionY(posY != null ? posY : 0.0);
+        node.setCableLengthM(lengthM != null ? lengthM : 10.0);
+        node.setCableType(cableType != null ? cableType : "ETHERNET");
+        node.setIsEnabled(true);
+        
+        SchemaNode saved = schemaNodeRepository.save(node);
+        log.info("Cable saved with id: {}", saved.getId());
+        
+        return saved;
     }
 }

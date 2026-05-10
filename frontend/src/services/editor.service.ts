@@ -46,20 +46,6 @@ class EditorService {
     await api.delete(`/schemas/nodes/${nodeId}`);
   }
 
-  async createConnection(
-    schemaId: string, 
-    sourceNodeId: string, 
-    targetNodeId: string, 
-    lengthM: number
-  ): Promise<any> {
-    const response = await api.post(`/schemas/${schemaId}/connections`, {
-      sourceNodeId,
-      targetNodeId,
-      lengthM,
-    });
-    return response.data;
-  }
-
   async updateConnection(connectionId: string, lengthM: number): Promise<void> {
     await api.put(`/schemas/connections/${connectionId}`, { lengthM });
   }
@@ -75,6 +61,43 @@ class EditorService {
 
   async cloneSchema(schemaId: string, newName: string): Promise<{ id: string; name: string }> {
     const response = await api.post(`/schemas/${schemaId}/clone`, { name: newName });
+    return response.data;
+  }
+
+  async createCableNode(schemaId: string, cableNode: any): Promise<any> {
+    const response = await api.post(`/schemas/${schemaId}/nodes/cables`, {
+      name: cableNode.name,
+      customName: cableNode.customName,
+      positionX: cableNode.position.x,
+      positionY: cableNode.position.y,
+      lengthM: cableNode.lengthM,
+      cableType: cableNode.cableType,
+    });
+    return response.data;
+  }
+
+  async createConnection(schemaId: string, sourceNodeId: string, targetNodeId: string, cableId: string, lengthM: number): Promise<any> {
+    const response = await api.post(`/schemas/${schemaId}/connections`, {
+      sourceNodeId,
+      targetNodeId,
+      cableId,
+      lengthM,
+    });
+    return response.data;
+  }
+
+  async getSchemaNodes(schemaId: string): Promise<any[]> {
+    const response = await api.get(`/schemas/${schemaId}/nodes`);
+    return response.data;
+  }
+
+  async getSchemaConnections(schemaId: string): Promise<any[]> {
+    const response = await api.get(`/schemas/${schemaId}/connections`);
+    return response.data;
+  }
+
+  async updateFullSchema(schemaId: string, schemaData: any): Promise<Record<string, string>> {
+    const response = await api.put(`/schemas/${schemaId}/full`, schemaData);
     return response.data;
   }
 }

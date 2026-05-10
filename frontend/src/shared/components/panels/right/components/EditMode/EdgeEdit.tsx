@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react';
+// src/shared/components/RightPanel/components/EditMode/EdgeEdit.tsx
+
+import React, { useState, useEffect } from 'react';
 import { EditorEdge } from '../../../../../types';
 import { PropertyGroup, PropertyLabel, PropertyInput, StatusBadge } from '../../RightPanel.styles';
+import { debounce } from 'lodash';
 
 interface EdgeEditProps {
   edge: EditorEdge;
@@ -14,9 +17,19 @@ const EdgeEdit: React.FC<EdgeEditProps> = ({ edge, onDataChange, initialData }) 
     isActive: initialData?.isActive !== undefined ? initialData.isActive : (edge.isActive !== false),
   });
 
+  const debouncedOnDataChange = React.useCallback(
+    debounce((data: any) => {
+      onDataChange(data);
+    }, 300),
+    [onDataChange]
+  );
+
   useEffect(() => {
-    onDataChange(formData);
-  }, [formData]);
+    debouncedOnDataChange(formData);
+    return () => {
+      debouncedOnDataChange.cancel();
+    };
+  }, [formData, debouncedOnDataChange]);
 
   const handleChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));

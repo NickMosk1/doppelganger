@@ -30,7 +30,7 @@ import { EditSchemaModal } from "../../shared/ui";
 
 const schemaService = new SchemaService();
 
-export const SchemasPage: React.FC = observer(() => {
+const SchemasPage: React.FC = observer(() => {
   const navigate = useNavigate();
   const { schemaStore, draftStore } = useStores();
   const [schemas, setSchemas] = useState<SchemaSummary[]>([]);
@@ -174,8 +174,12 @@ export const SchemasPage: React.FC = observer(() => {
 
                 <SchemaCardStats>
                   <StatItem>
-                    <StatValue>{schema.nodesCount || 0}</StatValue>
+                    <StatValue>{schema.devicesCount || 0}</StatValue>
                     <StatLabel>Устройств</StatLabel>
+                  </StatItem>
+                  <StatItem>
+                    <StatValue>{schema.cablesCount || 0}</StatValue>
+                    <StatLabel>Кабелей</StatLabel>
                   </StatItem>
                   <StatItem>
                     <StatValue>{schema.connectionsCount || 0}</StatValue>

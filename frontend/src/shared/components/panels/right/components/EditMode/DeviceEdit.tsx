@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react';
+// src/shared/components/RightPanel/components/EditMode/DeviceEdit.tsx
+
+import React, { useState, useEffect } from 'react';
 import { EditorNode } from '../../../../../types';
 import { PropertyGroup, PropertyLabel, PropertyInput } from '../../RightPanel.styles';
+import { debounce } from 'lodash';
 
 interface DeviceEditProps {
   node: EditorNode;
@@ -15,9 +18,19 @@ const DeviceEdit: React.FC<DeviceEditProps> = ({ node, onDataChange, initialData
     maxThroughputMbps: initialData?.maxThroughputMbps !== undefined ? initialData.maxThroughputMbps : (node.maxThroughputMbps || 0),
   });
 
+  const debouncedOnDataChange = React.useCallback(
+    debounce((data: any) => {
+      onDataChange(data);
+    }, 300),
+    [onDataChange]
+  );
+
   useEffect(() => {
-    onDataChange(formData);
-  }, [formData]);
+    debouncedOnDataChange(formData);
+    return () => {
+      debouncedOnDataChange.cancel();
+    };
+  }, [formData, debouncedOnDataChange]);
 
   const handleChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));

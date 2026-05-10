@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -69,21 +70,125 @@ public class SchemaService {
     
     public Map<String, Object> getSchemaStats(String id) {
         log.debug("Getting stats for schema: {}", id);
-        Long nodesCount = (long) schemaNodeRepository.findBySchemaId(id).size();
-        Long connectionsCount = (long) connectionRepository.findBySchemaId(id).size();
-        Integer depth = getSchemaById(id).getDepth();
+        
+        Schema schema = getSchemaById(id);
+        
+        long devicesCount = schemaNodeRepository.findBySchemaId(id).stream()
+            .filter(node -> node.getNodeType() == SchemaNode.NodeType.DEVICE)
+            .count();
+        
+        long cablesCount = schemaNodeRepository.findBySchemaId(id).stream()
+            .filter(node -> node.getNodeType() == SchemaNode.NodeType.CABLE)
+            .count();
+        
+        long subschemasCount = schemaNodeRepository.findBySchemaId(id).stream()
+            .filter(node -> node.getNodeType() == SchemaNode.NodeType.SUBSCHEMA)
+            .count();
+        
+        long connectionsCount = connectionRepository.findBySchemaId(id).size();
+        
+        int depth = schema.getDepth() != null ? schema.getDepth() : 0;
         
         return Map.of(
-            "nodesCount", nodesCount,
+            "devicesCount", devicesCount,
+            "cablesCount", cablesCount,
+            "subschemasCount", subschemasCount,
             "connectionsCount", connectionsCount,
             "depth", depth
         );
     }
     
+    // backend/src/main/java/com/doppelganger/network_digital_twin/service/SchemaService.java
+
     public SchemaFullDto getSchemaFull(String id) {
         log.debug("Fetching full schema: {}", id);
+        
         Schema schema = getSchemaById(id);
-        return buildFullDto(schema);
+        List<SchemaNode> nodes = schemaNodeRepository.findBySchemaId(id);
+        List<Connection> connections = connectionRepository.findBySchemaId(id);
+        
+        return buildFullDto(schema, nodes, connections);
+    }
+
+    private SchemaFullDto buildFullDto(Schema schema, List<SchemaNode> nodes, List<Connection> connections) {
+        // Преобразуем узлы
+        List<SchemaFullDto.NodeDto> nodeDtos = nodes.stream()
+            .filter(node -> node.getNodeType() == SchemaNode.NodeType.DEVICE || 
+                            node.getNodeType() == SchemaNode.NodeType.CABLE)
+            .map(node -> {
+                Device device = node.getDevice();
+                String deviceName = device != null ? device.getName() : null;
+                String deviceType = device != null ? device.getType().toString() : null;
+                String manufacturer = device != null ? device.getManufacturer() : null;
+                Double baseLatencyMs = device != null ? device.getBaseLatencyMs() : null;
+                Integer maxThroughputMbps = device != null ? device.getMaxThroughputMbps() : null;
+                
+                return SchemaFullDto.NodeDto.builder()
+                    .id(node.getId())
+                    .customName(node.getCustomName())
+                    .nodeType(node.getNodeType().toString())
+                    .positionX(node.getPositionX())
+                    .positionY(node.getPositionY())
+                    .device(SchemaFullDto.NodeDto.DeviceDto.builder()
+                        .id(device != null ? device.getId() : null)
+                        .name(deviceName)
+                        .type(deviceType)
+                        .manufacturer(manufacturer)
+                        .baseLatencyMs(baseLatencyMs)
+                        .maxThroughputMbps(maxThroughputMbps)
+                        .build())
+                    .cableLengthM(node.getCableLengthM())
+                    .cableType(node.getCableType())
+                    .build();
+            })
+            .collect(Collectors.toList());
+        
+        // Преобразуем связи
+        List<SchemaFullDto.ConnectionDto> connectionDtos = connections.stream()
+            .map(conn -> {
+                SchemaNode source = conn.getSourceNode();
+                SchemaNode target = conn.getTargetNode();
+                Cable cable = conn.getCable();
+                
+                String sourceName = source.getCustomName() != null ? 
+                    source.getCustomName() : (source.getDevice() != null ? source.getDevice().getName() : null);
+                String targetName = target.getCustomName() != null ? 
+                    target.getCustomName() : (target.getDevice() != null ? target.getDevice().getName() : null);
+                
+                return SchemaFullDto.ConnectionDto.builder()
+                    .id(conn.getId())
+                    .lengthM(conn.getLengthM())
+                    .bandwidthMbps(conn.getBandwidthMbps())
+                    .sourceNode(SchemaFullDto.ConnectionDto.NodeRefDto.builder()
+                        .id(source.getId())
+                        .customName(sourceName)
+                        .build())
+                    .targetNode(SchemaFullDto.ConnectionDto.NodeRefDto.builder()
+                        .id(target.getId())
+                        .customName(targetName)
+                        .build())
+                    .cable(SchemaFullDto.ConnectionDto.CableDto.builder()
+                        .id(cable != null ? cable.getId() : null)
+                        .name(cable != null ? cable.getName() : null)
+                        .type(cable != null ? cable.getType().toString() : null)
+                        .maxLengthM(cable != null ? cable.getMaxLengthM() : null)
+                        .attenuationDbPerKm(cable != null ? cable.getAttenuationDbPerKm() : null)
+                        .build())
+                    .sourcePortId(conn.getSourcePortId())
+                    .targetPortId(conn.getTargetPortId())
+                    .build();
+            })
+            .collect(Collectors.toList());
+        
+        return SchemaFullDto.builder()
+            .id(schema.getId())
+            .name(schema.getName())
+            .description(schema.getDescription())
+            .depth(schema.getDepth())
+            .path(schema.getPath())
+            .nodes(nodeDtos)
+            .connections(connectionDtos)
+            .build();
     }
     
     // ============ CREATE ============
@@ -236,5 +341,26 @@ public class SchemaService {
         Schema schema = getSchemaById(id);
         schema.setLastOpenedAt(LocalDateTime.now());
         schemaRepository.save(schema);
+    }
+
+    // backend/src/main/java/com/doppelganger/network_digital_twin/service/SchemaService.java
+
+    @Transactional
+    public void clearSchema(String schemaId) {
+        log.info("Clearing schema: {}", schemaId);
+        
+        // Сначала удаляем связи (они зависят от узлов)
+        List<Connection> connections = connectionRepository.findBySchemaId(schemaId);
+        if (!connections.isEmpty()) {
+            connectionRepository.deleteAll(connections);
+            log.info("Deleted {} connections", connections.size());
+        }
+        
+        // Затем удаляем узлы
+        List<SchemaNode> nodes = schemaNodeRepository.findBySchemaId(schemaId);
+        if (!nodes.isEmpty()) {
+            schemaNodeRepository.deleteAll(nodes);
+            log.info("Deleted {} nodes", nodes.size());
+        }
     }
 }

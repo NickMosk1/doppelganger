@@ -1,9 +1,12 @@
+// backend/src/main/java/com/doppelganger/network_digital_twin/service/ConnectionService.java
 package com.doppelganger.network_digital_twin.service;
 
+import com.doppelganger.network_digital_twin.entity.Cable;
 import com.doppelganger.network_digital_twin.entity.Connection;
 import com.doppelganger.network_digital_twin.entity.Schema;
 import com.doppelganger.network_digital_twin.entity.SchemaNode;
 import com.doppelganger.network_digital_twin.exception.ResourceNotFoundException;
+import com.doppelganger.network_digital_twin.repository.CableRepository;
 import com.doppelganger.network_digital_twin.repository.ConnectionRepository;
 import com.doppelganger.network_digital_twin.repository.SchemaRepository;
 import com.doppelganger.network_digital_twin.repository.SchemaNodeRepository;
@@ -22,6 +25,7 @@ public class ConnectionService {
     private final ConnectionRepository connectionRepository;
     private final SchemaRepository schemaRepository;
     private final SchemaNodeRepository schemaNodeRepository;
+    private final CableRepository cableRepository;
     
     public List<Connection> getConnectionsBySchemaId(String schemaId) {
         log.debug("Fetching connections for schema: {}", schemaId);
@@ -36,7 +40,9 @@ public class ConnectionService {
     
     @Transactional
     public Connection createConnection(String schemaId, String sourceNodeId, 
-                                        String targetNodeId, Double lengthM) {
+                                        String targetNodeId, String sourcePortId,
+                                        String targetPortId, String cableId, 
+                                        Double lengthM) {
         log.info("Creating connection from {} to {}", sourceNodeId, targetNodeId);
         
         Schema schema = schemaRepository.findById(schemaId)
@@ -52,6 +58,14 @@ public class ConnectionService {
         connection.setSchema(schema);
         connection.setSourceNode(sourceNode);
         connection.setTargetNode(targetNode);
+        connection.setSourcePortId(sourcePortId != null ? sourcePortId : "");
+        connection.setTargetPortId(targetPortId != null ? targetPortId : "");
+        
+        if (cableId != null && !cableId.isEmpty()) {
+            Cable cable = cableRepository.findById(cableId).orElse(null);
+            connection.setCable(cable);
+        }
+        
         connection.setLengthM(lengthM != null ? lengthM : 10.0);
         
         return connectionRepository.save(connection);
@@ -68,10 +82,6 @@ public class ConnectionService {
     @Transactional
     public void deleteConnection(String id) {
         log.info("Deleting connection: {}", id);
-        if (!connectionRepository.existsById(id)) {
-            log.warn("Connection not found with id: {}", id);
-            return;
-        }
         connectionRepository.deleteById(id);
     }
     

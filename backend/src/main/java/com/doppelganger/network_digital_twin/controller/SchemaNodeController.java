@@ -1,6 +1,10 @@
 package com.doppelganger.network_digital_twin.controller;
 
+import com.doppelganger.network_digital_twin.entity.Schema;
 import com.doppelganger.network_digital_twin.entity.SchemaNode;
+import com.doppelganger.network_digital_twin.exception.ResourceNotFoundException;
+import com.doppelganger.network_digital_twin.repository.SchemaNodeRepository;
+import com.doppelganger.network_digital_twin.repository.SchemaRepository;
 import com.doppelganger.network_digital_twin.service.SchemaNodeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -16,7 +20,9 @@ import java.util.Map;
 public class SchemaNodeController {
     
     private final SchemaNodeService schemaNodeService;
-    
+    private final SchemaRepository schemaRepository;
+    private final SchemaNodeRepository schemaNodeRepository;
+
     // GET /api/schemas/{schemaId}/nodes - все узлы схемы
     @GetMapping
     public ResponseEntity<List<SchemaNode>> getNodesBySchema(@PathVariable String schemaId) {
@@ -30,27 +36,47 @@ public class SchemaNodeController {
         return ResponseEntity.ok(Map.of("count", count));
     }
     
-    // GET /api/schemas/{schemaId}/nodes/{nodeId} - получить узел по ID
+    // GET /api/schemas/{schemaId}/nodes/cables - все кабели схемы
+    @GetMapping("/cables")
+    public ResponseEntity<List<SchemaNode>> getCableNodes(@PathVariable String schemaId) {
+        List<SchemaNode> cables = schemaNodeRepository.findBySchemaIdAndNodeType(schemaId, SchemaNode.NodeType.CABLE);
+        return ResponseEntity.ok(cables);
+    }
+    
+    // GET /api/schemas/{schemaId}/nodes/{nodeId} - узел по ID
     @GetMapping("/{nodeId}")
     public ResponseEntity<SchemaNode> getNodeById(@PathVariable String nodeId) {
         return ResponseEntity.ok(schemaNodeService.getNodeById(nodeId));
     }
     
-    // POST /api/schemas/{schemaId}/nodes/devices/{deviceId} - добавить устройство на схему
+    // POST /api/schemas/{schemaId}/nodes/devices/{deviceId} - добавить устройство
     @PostMapping("/devices/{deviceId}")
     public ResponseEntity<SchemaNode> addDeviceToSchema(
             @PathVariable String schemaId,
             @PathVariable String deviceId,
-            @RequestBody(required = false) Map<String, Object> request) {
-        
-        Double posX = request != null && request.containsKey("positionX") 
-            ? ((Number) request.get("positionX")).doubleValue() : 0.0;
-        Double posY = request != null && request.containsKey("positionY") 
-            ? ((Number) request.get("positionY")).doubleValue() : 0.0;
-        String customName = request != null && request.containsKey("customName") 
-            ? (String) request.get("customName") : null;
+            @RequestBody Map<String, Object> request) {
+        Double posX = request.containsKey("positionX") ? ((Number) request.get("positionX")).doubleValue() : 0.0;
+        Double posY = request.containsKey("positionY") ? ((Number) request.get("positionY")).doubleValue() : 0.0;
+        String customName = request.containsKey("customName") ? (String) request.get("customName") : null;
         
         SchemaNode node = schemaNodeService.addDeviceToSchema(schemaId, deviceId, posX, posY, customName);
+        return ResponseEntity.status(HttpStatus.CREATED).body(node);
+    }
+    
+    // POST /api/schemas/{schemaId}/nodes/cables - добавить кабель
+    @PostMapping("/cables")
+    public ResponseEntity<SchemaNode> addCableToSchema(
+            @PathVariable String schemaId,
+            @RequestBody Map<String, Object> request) {
+        
+        String name = request.containsKey("name") ? (String) request.get("name") : null;
+        String customName = request.containsKey("customName") ? (String) request.get("customName") : null;
+        Double posX = request.containsKey("positionX") ? ((Number) request.get("positionX")).doubleValue() : 0.0;
+        Double posY = request.containsKey("positionY") ? ((Number) request.get("positionY")).doubleValue() : 0.0;
+        Double lengthM = request.containsKey("lengthM") ? ((Number) request.get("lengthM")).doubleValue() : 10.0;
+        String cableType = request.containsKey("cableType") ? (String) request.get("cableType") : "ETHERNET";
+        
+        SchemaNode node = schemaNodeService.addCableToSchema(schemaId, name, customName, posX, posY, lengthM, cableType);
         return ResponseEntity.status(HttpStatus.CREATED).body(node);
     }
     
@@ -77,7 +103,6 @@ public class SchemaNodeController {
     public ResponseEntity<SchemaNode> updateNodePosition(
             @PathVariable String nodeId,
             @RequestBody Map<String, Double> position) {
-        
         Double posX = position.get("positionX");
         Double posY = position.get("positionY");
         SchemaNode node = schemaNodeService.updateNodePosition(nodeId, posX, posY);

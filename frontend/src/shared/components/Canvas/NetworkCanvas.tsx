@@ -43,6 +43,15 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
   const { editorStore, draftStore } = useStores();
   const { setCenter, setViewport } = useReactFlow();
   const viewport = useViewport();
+
+  useEffect(() => {
+    (window as any).debugStore = {
+      editorStore,
+      draftStore,
+      nodes: editorStore.nodes,
+      edges: editorStore.edges,
+    };
+  }, [editorStore, draftStore]);
   
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -188,24 +197,42 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
 
   // При конвертации ребер, добавьте selected для жирности
   const convertToReactFlowEdges = useCallback((storeEdges: EditorEdge[]): Edge[] => {
-    return storeEdges.map(edge => {
-      const isSelected = editorStore.selectedEdgeId === edge.id;
-      
-      return {
-        id: edge.id,
-        source: edge.sourceNodeId,
-        target: edge.targetNodeId,
-        sourceHandle: edge.source,
-        targetHandle: edge.target,
-        label: `${edge.lengthM}м`,
-        selected: isSelected,  // ← убедитесь, что selected передается
-        style: { 
-          stroke: isSelected ? '#e54848' : '#94a3b8', 
-          strokeWidth: isSelected ? 3 : 2,
-        },
-      };
-    });
-  }, [editorStore.edges, editorStore.selectedEdgeId]);
+    console.log("Converting edges to React Flow:", storeEdges);
+    console.log("Current nodes in store:", editorStore.nodes.map(n => ({ id: n.id, name: n.name })));
+    
+    return storeEdges
+      .filter(edge => {
+        // Проверяем, что оба узла существуют
+        const sourceExists = editorStore.nodes.some(n => n.id === edge.sourceNodeId);
+        const targetExists = editorStore.nodes.some(n => n.id === edge.targetNodeId);
+        
+        if (!sourceExists) {
+          console.warn(`Source node ${edge.sourceNodeId} not found for edge ${edge.id}`);
+        }
+        if (!targetExists) {
+          console.warn(`Target node ${edge.targetNodeId} not found for edge ${edge.id}`);
+        }
+        
+        return sourceExists && targetExists;
+      })
+      .map(edge => {
+        const isSelected = editorStore.selectedEdgeId === edge.id;
+        
+        return {
+          id: edge.id,
+          source: edge.sourceNodeId,
+          target: edge.targetNodeId,
+          sourceHandle: edge.source,
+          targetHandle: edge.target,
+          label: `${edge.lengthM}м`,
+          selected: isSelected,
+          style: { 
+            stroke: isSelected ? '#e54848' : '#94a3b8', 
+            strokeWidth: isSelected ? 3 : 2,
+          },
+        };
+      });
+  }, [editorStore.nodes, editorStore.selectedEdgeId]);
 
   // MobX reaction для отслеживания изменений узлов
   useEffect(() => {
@@ -294,7 +321,6 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
     onEdgesChange(changes);
   }, [onEdgesChange]);
 
-  // Обработчик создания связи
   const onConnect = useCallback((connection: Connection) => {
     console.log("=== CONNECTION DETECTED ===", connection);
     
@@ -302,25 +328,28 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
     
     const edgeId = `${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
     
+    // ПРАВИЛЬНОЕ создание EditorEdge
     const newEdge: EditorEdge = {
       id: edgeId,
-      source: connection.sourceHandle!,
-      target: connection.targetHandle!,
-      sourceNodeId: connection.source,
-      targetNodeId: connection.target,
+      source: connection.sourceHandle!,        // ID порта источника
+      target: connection.targetHandle!,        // ID порта назначения
+      sourceNodeId: connection.source,         // ID узла-источника
+      targetNodeId: connection.target,         // ID узла-назначения
       lengthM: 10,
       isActive: true,
     };
+    
+    console.log("Creating new edge:", newEdge);
     
     const added = editorStore.addEdge(newEdge);
     
     if (added) {
       const reactFlowEdge: Edge = {
         id: edgeId,
-        source: connection.source,
-        target: connection.target,
-        sourceHandle: connection.sourceHandle,
-        targetHandle: connection.targetHandle,
+        source: connection.source,              // ID узла-источника для React Flow
+        target: connection.target,              // ID узла-назначения для React Flow
+        sourceHandle: connection.sourceHandle,  // ID порта источника для React Flow
+        targetHandle: connection.targetHandle,  // ID порта назначения для React Flow
         label: '10м',
         style: { stroke: '#e54848', strokeWidth: 2 },
       };

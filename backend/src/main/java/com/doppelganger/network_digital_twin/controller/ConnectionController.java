@@ -1,7 +1,9 @@
+// backend/src/main/java/com/doppelganger/network_digital_twin/controller/ConnectionController.java
 package com.doppelganger.network_digital_twin.controller;
 
 import com.doppelganger.network_digital_twin.entity.Connection;
 import com.doppelganger.network_digital_twin.service.ConnectionService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -10,14 +12,11 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/schemas/{schemaId}/connections")
+@RequiredArgsConstructor
 @CrossOrigin(origins = "*")
 public class ConnectionController {
     
     private final ConnectionService connectionService;
-    
-    public ConnectionController(ConnectionService connectionService) {
-        this.connectionService = connectionService;
-    }
     
     @GetMapping
     public ResponseEntity<List<Connection>> getConnections(@PathVariable String schemaId) {
@@ -36,11 +35,14 @@ public class ConnectionController {
         
         String sourceNodeId = (String) request.get("sourceNodeId");
         String targetNodeId = (String) request.get("targetNodeId");
+        String sourcePortId = (String) request.get("sourcePortId");
+        String targetPortId = (String) request.get("targetPortId");
+        String cableId = (String) request.get("cableId");
         Double lengthM = request.get("lengthM") != null ? 
             ((Number) request.get("lengthM")).doubleValue() : 10.0;
         
         Connection connection = connectionService.createConnection(
-            schemaId, sourceNodeId, targetNodeId, lengthM);
+            schemaId, sourceNodeId, targetNodeId, sourcePortId, targetPortId, cableId, lengthM);
         return ResponseEntity.status(HttpStatus.CREATED).body(connection);
     }
     
