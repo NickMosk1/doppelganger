@@ -105,7 +105,6 @@ const StatusIndicator = styled.div<{ status?: string }>`
   font-size: 9px;
   margin-top: 8px;
   padding-top: 6px;
-  border-top: 1px solid #e2e8f0;
   color: ${props => 
     props.status === 'OPERATIONAL' ? '#10b981' : 
     props.status === 'DEGRADED' ? '#f59e0b' : 

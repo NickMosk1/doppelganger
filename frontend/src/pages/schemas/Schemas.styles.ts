@@ -49,16 +49,17 @@ export const SchemaCardHeader = styled.div`
   margin-bottom: 20px;
 `;
 
-export const SchemaCardTitle = styled.h3`
-  font-size: 22px;
+export const SchemaNameText = styled.span`
+  font-size: 18px;
   font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
   color: ${colors.text};
-  margin: 0 0 8px 0;
-  cursor: pointer;
   
   &:hover {
+    background: ${colors.background};
     color: ${colors.primary};
-    text-decoration: underline;
   }
 `;
 

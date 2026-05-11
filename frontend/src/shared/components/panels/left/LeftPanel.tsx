@@ -85,14 +85,10 @@ const LeftPanel: React.FC = observer(() => {
       });
       catalogStore.addDeviceSync(newDevice);
       
-      // Сохраняем черновик после добавления
-      const schemaId = editorStore.currentSchemaId;
-      if (schemaId && draftStore.currentDraft) {
-        draftStore.updateDraft(schemaId, {
-          nodes: editorStore.nodes,
-          edges: editorStore.edges,
-        });
-      }
+      // Не нужно явно обновлять черновик здесь,
+      // потому что добавление узла в editorStore вызовет reaction в DraftStore
+      // который автоматически отметит hasUnsavedChanges = true
+      
     } catch (error) {
       console.error("Failed to add device:", error);
     }
@@ -102,6 +98,8 @@ const LeftPanel: React.FC = observer(() => {
     try {
       const newCable = await catalogService.addCable(cable);
       catalogStore.addCableSync(newCable);
+      
+      // Аналогично - черновик обновится автоматически через реакции
     } catch (error) {
       console.error("Failed to add cable:", error);
     }

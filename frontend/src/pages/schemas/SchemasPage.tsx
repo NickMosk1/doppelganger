@@ -10,7 +10,7 @@ import {
   SchemasGrid,
   SchemaCard,
   SchemaCardHeader,
-  SchemaCardTitle,
+  SchemaNameText,
   SchemaCardDescription,
   SchemaCardDate,
   SchemaCardStats,
@@ -26,7 +26,6 @@ import {
 } from "./Schemas.styles";
 import SchemaService from "../../services/schema.service";
 import { SchemaSummary, Button, Dialog } from "../../shared";
-import { EditSchemaModal } from "../../shared/ui";
 
 const schemaService = new SchemaService();
 
@@ -35,7 +34,6 @@ const SchemasPage: React.FC = observer(() => {
   const { schemaStore, draftStore } = useStores();
   const [schemas, setSchemas] = useState<SchemaSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingSchema, setEditingSchema] = useState<SchemaSummary | null>(null);
   const [deletingSchema, setDeletingSchema] = useState<SchemaSummary | null>(null);
 
   useEffect(() => {
@@ -78,24 +76,6 @@ const SchemasPage: React.FC = observer(() => {
     navigate(`/editor/${schemaId}`);
   };
 
-  const handleEditSchema = (schema: SchemaSummary) => {
-    setEditingSchema(schema);
-  };
-
-  const handleSaveEdit = async (name: string, description: string) => {
-    if (editingSchema) {
-      try {
-        await schemaService.updateSchema(editingSchema.id, { name, description });
-        setSchemas(prev => prev.map(s => 
-          s.id === editingSchema.id ? { ...s, name, description } : s
-        ));
-      } catch (error) {
-        console.error("Failed to update schema:", error);
-      }
-    }
-    setEditingSchema(null);
-  };
-
   const handleDeleteSchema = async (schemaId: string) => {
     try {
       await schemaService.deleteSchema(schemaId);
@@ -114,7 +94,7 @@ const SchemasPage: React.FC = observer(() => {
 
   const getDraftStatus = (schemaId: string) => {
     const draft = draftStore.getDraftById(schemaId);
-    if (draft && draft.hasLocalChanges) {
+    if (draft && draft.hasUnsavedChanges) {
       return { hasDraft: true, hasChanges: true };
     }
     if (draft) {
@@ -158,9 +138,9 @@ const SchemasPage: React.FC = observer(() => {
               <SchemaCard key={schema.id}>
                 <SchemaCardHeader>
                   <div style={{ flex: 1 }}>
-                    <SchemaCardTitle onClick={() => handleEditSchema(schema)}>
+                    <SchemaNameText>
                       {schema.name}
-                    </SchemaCardTitle>
+                    </SchemaNameText>
                     {schema.description && (
                       <SchemaCardDescription>
                         {schema.description}
@@ -233,16 +213,6 @@ const SchemasPage: React.FC = observer(() => {
             );
           })}
         </SchemasGrid>
-      )}
-
-      {editingSchema && (
-        <EditSchemaModal
-          isOpen={!!editingSchema}
-          onClose={() => setEditingSchema(null)}
-          onSave={handleSaveEdit}
-          initialName={editingSchema.name}
-          initialDescription={editingSchema.description || ""}
-        />
       )}
 
       {deletingSchema && (

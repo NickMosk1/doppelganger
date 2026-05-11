@@ -7,6 +7,7 @@ export enum EditorNodes {
   DEVICE = "DEVICE",
   SUBSCHEMA = "SUBSCHEMA",
   CABLE = "CABLE",
+  FACTOR = "FACTOR",
 };
 
 export enum EdgeStatus {
@@ -70,8 +71,15 @@ export interface EditorNode {
   // Для кабелей
   lengthM?: number;
   cableType?: string;
+  bandwidthMbps?: number;  // Добавляем пропускную способность для кабелей
   
-  // Промышленные факторы
+  // Для факторов (промышленные источники)
+  factorType?: string;
+  factorValue?: number;
+  factorUnit?: string;
+  factorRadius?: number;
+  
+  // Промышленные факторы для устройств
   temperatureOffset?: number;
   emiOffset?: number;
   vibrationOffset?: number;
@@ -82,27 +90,48 @@ export interface EditorNode {
   maxThroughputMbps?: number;
   icon?: string;
   color?: string;
-};
+  
+  isCustom?: boolean;  // Добавляем флаг пользовательского элемента
+}
+
+// Типы связей
+export enum ConnectionType {
+  CABLE_DEVICE = "CABLE_DEVICE",     // связь между кабелем и устройством
+  FACTOR_ELEMENT = "FACTOR_ELEMENT", // связь между промышленным фактором и элементом
+}
+
+export interface FactorConnectionData {
+  factorId: string;      // ID источника (EMI, температура, вибрация)
+  factorType: string;    // тип фактора
+  distance: number;      // расстояние до элемента (метры)
+  attenuation: number;   // ослабление воздействия с расстоянием
+}
 
 export interface EditorEdge {
   id: string;
   source: string;
   target: string;
-  sourceNodeId: string; // ID узла-источника (добавляем)
-  targetNodeId: string; // ID узла-назначения (добавляем)
+  sourceNodeId: string;
+  targetNodeId: string;
+  connectionType: ConnectionType;
+  
+  // Для CABLE_DEVICE
+  lengthM?: number;
+  bandwidthMbps?: number;
   cableId?: string;
-  cableInfo?: CableInfo;
-  lengthM: number;
-
-  // Параметры соединения
-  bandwidthMbps?: number;        // Пропускная способность (Мбит/с)
-  latencyMs?: number;            // Задержка на этом соединении (мс)
-  packetLossPercent?: number;    // Потери пакетов (%)
-
-  // Статус соединения
+  cableInfo?: CableInfo;  // Добавляем cableInfo
+  status?: EdgeStatus;     // Добавляем status
+  
+  // Для FACTOR_ELEMENT
+  factorData?: {
+    factorId: string;
+    factorType: string;
+    distance: number;
+    attenuation: number;
+  };
+  
   isActive?: boolean;
-  status?: EdgeStatus;
-};
+}
 
 export interface Port {
   id: string;
@@ -112,3 +141,10 @@ export interface Port {
   isConnected: boolean;
   position?: NodePosition; // Относительная позиция на ноде
 };
+
+export interface UpdateFullSchemaRequest {
+  name: string;
+  description: string;
+  nodes: EditorNode[];
+  edges: EditorEdge[];
+}

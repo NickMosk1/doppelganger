@@ -1,7 +1,6 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { observer } from "mobx-react-lite";
-import { debounce } from "lodash";
 import { useStores } from "../../hooks/useStores";
 import {
   EditorContainer,
@@ -11,12 +10,12 @@ import {
   ActionButtons,
   MainContent,
   DraftIndicator,
+  SavedIndicator,
 } from "./SchemaEditorPage.styles";
 import { Button, EditorNodes, LeftPanel, NetworkCanvas, NodeStatus, RightPanel } from "../../shared";
 import EditorService from "../../services/editor.service";
 import SimulationService from "../../services/simulation.service";
 import CatalogService from "../../services/catalog.service";
-import { generateDefaultPorts, getDeviceIcon } from "../../shared/components/Canvas/utils";
 import { EditSchemaModal } from "../../shared/ui";
 
 const editorService = new EditorService();
@@ -58,74 +57,67 @@ const SchemaEditorPage: React.FC = observer(() => {
   useEffect(() => {
     const loadSchema = async () => {
       if (!id || id === "new") {
-        // Новая схема - создаем черновик
         const newId = `draft-${Date.now()}`;
         draftStore.createDraft(newId, "Новая схема", "", [], []);
         draftStore.setCurrentDraft(newId);
         editorStore.setCurrentSchemaId(newId);
         setSchemaName("Новая схема");
+        setSchemaDescription("");
         return;
       }
 
-      // Проверяем наличие черновика
       const draft = draftStore.getDraftById(id);
       
       if (draft) {
-        // Загружаем из черновика
         editorStore.setNodes(draft.nodes);
         editorStore.setEdges(draft.edges);
         editorStore.setCurrentSchemaId(id);
         setSchemaName(draft.schemaName);
+        setSchemaDescription(draft.schemaDescription || "");
         draftStore.setCurrentDraft(id);
       } else {
-        // Загружаем с бэка
         editorStore.setLoading(true);
         try {
           const fullSchema = await editorService.getSchemaFull(id);
           
-          console.log("Full schema:", fullSchema);
-          console.log("Connections from backend:", fullSchema.connections);
-          
-          // Конвертируем узлы - исправлено: name всегда будет строкой
           const nodes = fullSchema.nodes.map(node => ({
             id: node.id,
-            type: node.nodeType === "DEVICE" ? EditorNodes.DEVICE : 
-                  node.nodeType === "CABLE" ? EditorNodes.CABLE : EditorNodes.SUBSCHEMA,
+            type: node.nodeType === "DEVICE" ? EditorNodes.DEVICE :
+                  node.nodeType === "CABLE" ? EditorNodes.CABLE :
+                  node.nodeType === "FACTOR" ? EditorNodes.FACTOR : EditorNodes.SUBSCHEMA,
             deviceId: node.device?.id,
-            name: node.device?.name || node.customName || node.name || "Устройство",
+            factorType: node.factorType,
+            factorValue: node.factorValue,
+            factorUnit: node.factorUnit,
+            name: node.device?.name || node.customName || "Элемент",
             customName: node.customName,
             position: { x: node.positionX, y: node.positionY },
             isEnabled: true,
             status: NodeStatus.OPERATIONAL,
-            lengthM: node.cableLengthM,
+            lengthM: node.lengthM,
             cableType: node.cableType,
+            bandwidthMbps: node.bandwidthMbps,
           }));
           
-          const edges = fullSchema.connections.map(conn => {
-            // Находим реальные ID узлов среди загруженных узлов
-            const sourceNode = nodes.find(n => n.id === conn.sourceNode.id);
-            const targetNode = nodes.find(n => n.id === conn.targetNode.id);
-            
-            return {
-              id: conn.id,
-              sourceNodeId: sourceNode?.id || conn.sourceNode.id,
-              targetNodeId: targetNode?.id || conn.targetNode.id,
-              source: conn.sourcePortId || "left",
-              target: conn.targetPortId || "right",
-              lengthM: conn.lengthM,
-              isActive: true,
-            };
-          });
-          
-          console.log("Converted edges:", edges);
+          const edges = fullSchema.connections?.map(conn => ({
+            id: conn.id,
+            sourceNodeId: conn.sourceNode.id,
+            targetNodeId: conn.targetNode.id,
+            source: conn.sourcePortId || "left",
+            target: conn.targetPortId || "right",
+            connectionType: conn.connectionType,
+            lengthM: conn.lengthM,
+            factorData: conn.factorData,
+            isActive: true,
+          })) || [];
           
           editorStore.setNodes(nodes);
           editorStore.setEdges(edges);
           editorStore.setCurrentSchemaId(id);
           setSchemaName(fullSchema.name);
+          setSchemaDescription(fullSchema.description || "");
           
-          // Создаем черновик
-          draftStore.createDraft(id, fullSchema.name, fullSchema.description, nodes, edges);
+          draftStore.createDraft(id, fullSchema.name, fullSchema.description || "", nodes, edges);
           draftStore.markAsSaved(id);
           
         } catch (error) {
@@ -139,27 +131,6 @@ const SchemaEditorPage: React.FC = observer(() => {
     loadSchema();
   }, [id]);
 
-  const autoSaveDraft = useCallback(
-    debounce((schemaId: string, name: string, description: string, nodes: any[], edges: any[]) => {
-      if (schemaId) {
-        console.log("📝 Auto-saving draft:", { nodesCount: nodes.length, edgesCount: edges.length });
-        draftStore.updateDraft(schemaId, {
-          schemaName: name,
-          schemaDescription: description,
-          nodes: nodes,
-          edges: edges,
-        });
-      }
-    }, 500),
-    []
-  );
-
-  useEffect(() => {
-    if (draftStore.currentDraft && id) {
-      autoSaveDraft(id, schemaName, schemaDescription, editorStore.nodes, editorStore.edges);
-    }
-  }, [editorStore.nodes, editorStore.edges, schemaName, schemaDescription, id, autoSaveDraft]);
-
   const handleOpenEditModal = () => {
     setIsEditModalOpen(true);
   };
@@ -168,7 +139,6 @@ const SchemaEditorPage: React.FC = observer(() => {
     setSchemaName(newName);
     setSchemaDescription(newDescription);
     
-    // Сохраняем в черновик
     if (draftStore.currentDraft && id) {
       draftStore.updateDraft(id, {
         schemaName: newName,
@@ -176,7 +146,6 @@ const SchemaEditorPage: React.FC = observer(() => {
       });
     }
     
-    // Если схема уже сохранена на бэке, обновляем её
     if (id && id !== "new" && !id.startsWith("draft-")) {
       try {
         await editorService.updateSchema(id, {
@@ -259,43 +228,12 @@ const SchemaEditorPage: React.FC = observer(() => {
     }
   };
 
-  const nodesLengthRef = useRef(editorStore.nodes.length);
-  const edgesLengthRef = useRef(editorStore.edges.length);
-
-  const saveDraftToLocalStorage = useCallback(() => {
-    if (draftStore.currentDraft && id) {
-      draftStore.updateDraft(id, {
-        schemaName: schemaName,
-        schemaDescription: schemaDescription,
-        nodes: JSON.parse(JSON.stringify(editorStore.nodes)),
-        edges: JSON.parse(JSON.stringify(editorStore.edges)),
-      });
-    }
-  }, [id, schemaName, schemaDescription, editorStore.nodes, editorStore.edges, draftStore]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const currentNodesLength = editorStore.nodes.length;
-      const currentEdgesLength = editorStore.edges.length;
-      
-      if (currentNodesLength !== nodesLengthRef.current || 
-          currentEdgesLength !== edgesLengthRef.current) {
-        console.log("🔄 Changes detected via interval");
-        nodesLengthRef.current = currentNodesLength;
-        edgesLengthRef.current = currentEdgesLength;
-        saveDraftToLocalStorage();
-      }
-    }, 1000);
-    
-    return () => clearInterval(interval);
-  }, [editorStore.nodes.length, editorStore.edges.length, saveDraftToLocalStorage]);
-
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Подготавливаем данные для отправки
       const schemaData = {
         name: schemaName,
+        description: schemaDescription,
         nodes: editorStore.nodes.map(node => ({
           id: node.id,
           type: node.type,
@@ -306,41 +244,41 @@ const SchemaEditorPage: React.FC = observer(() => {
           positionY: node.position.y,
           lengthM: node.lengthM,
           cableType: node.cableType,
+          bandwidthMbps: node.bandwidthMbps,
+          factorType: node.factorType,
+          factorValue: node.factorValue,
         })),
         connections: editorStore.edges.map(edge => ({
           sourceNodeId: edge.sourceNodeId,
           targetNodeId: edge.targetNodeId,
           sourcePortId: edge.source,
           targetPortId: edge.target,
+          connectionType: edge.connectionType,
           lengthM: edge.lengthM,
+          factorData: edge.factorData,
         })),
       };
       
       let schemaId = id;
       let nodeIdMap = null;
       
-      if (!id || id === "new") {
-        const newSchema = await editorService.createSchema(schemaName, "", false);
+      if (!id || id === "new" || id.startsWith("draft-")) {
+        const newSchema = await editorService.createSchema(schemaName, schemaDescription, false);
         schemaId = newSchema.id;
         nodeIdMap = await editorService.updateFullSchema(schemaId, schemaData);
         navigate(`/editor/${schemaId}`, { replace: true });
       } else {
-        await editorService.updateSchema(id, { name: schemaName });
+        await editorService.updateSchema(id, { name: schemaName, description: schemaDescription });
         nodeIdMap = await editorService.updateFullSchema(id, schemaData);
       }
       
-      // КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: обновляем ID узлов и связей
       if (nodeIdMap) {
-        console.log("Node ID mapping from backend:", nodeIdMap);
-        
-        // 1. Обновляем ID узлов
         const updatedNodes = editorStore.nodes.map(node => ({
           ...node,
           id: nodeIdMap[node.id] || node.id,
         }));
         editorStore.setNodes(updatedNodes);
         
-        // 2. Обновляем ID в связях
         const updatedEdges = editorStore.edges.map(edge => ({
           ...edge,
           sourceNodeId: nodeIdMap[edge.sourceNodeId] || edge.sourceNodeId,
@@ -348,16 +286,13 @@ const SchemaEditorPage: React.FC = observer(() => {
         }));
         editorStore.setEdges(updatedEdges);
         
-        console.log("Updated nodes:", updatedNodes.map(n => ({ oldId: n.id, newId: n.id })));
-        console.log("Updated edges:", updatedEdges);
-        
-        // 3. Обновляем черновик
         draftStore.updateDraft(schemaId ?? "", {
           nodes: updatedNodes,
           edges: updatedEdges,
         });
       }
       
+      // После успешного сохранения на бэке сбрасываем флаг
       draftStore.markAsSaved(schemaId ?? "");
       alert("Схема сохранена");
     } catch (error) {
@@ -374,20 +309,22 @@ const SchemaEditorPage: React.FC = observer(() => {
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <SchemaName>
             <SchemaNameText onClick={handleOpenEditModal}>
-              {schemaName}
+              {schemaName || "Без названия"}
             </SchemaNameText>
           </SchemaName>
-          {draftStore.hasLocalChanges && (
-            <DraftIndicator>Черновик</DraftIndicator>
+          {draftStore.hasUnsavedChanges ? (
+            <DraftIndicator>📝 Черновик</DraftIndicator>
+          ) : (
+            <SavedIndicator>💾 Сохранено</SavedIndicator>
           )}
           {draftStore.lastValidationTime && draftStore.validationErrors.length === 0 && (
             <DraftIndicator $isValid>
-              Валидация: {new Date(draftStore.lastValidationTime).toLocaleTimeString()}
+              ✅ Валидация: {new Date(draftStore.lastValidationTime).toLocaleTimeString()}
             </DraftIndicator>
           )}
           {draftStore.lastValidationTime && draftStore.validationErrors.length > 0 && (
             <DraftIndicator style={{ background: "#ef444420", color: "#ef4444", borderColor: "#ef4444" }}>
-              {draftStore.validationErrors.length} ошибок
+              ⚠️ {draftStore.validationErrors.length} ошибок
             </DraftIndicator>
           )}
         </div>

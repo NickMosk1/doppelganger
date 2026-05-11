@@ -19,6 +19,16 @@ export const HeaderActions = styled.div`
   flex-shrink: 0;
 `;
 
+export const SavedIndicator = styled.span<{ $isValid?: boolean }>`
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: #10b98120;
+  color: #10b981;
+  border: 1px solid #10b981;
+  white-space: nowrap;
+`;
+
 export const SchemaName = styled.div`
   display: flex;
   align-items: center;

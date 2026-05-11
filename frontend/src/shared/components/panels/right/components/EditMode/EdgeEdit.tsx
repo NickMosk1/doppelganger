@@ -1,9 +1,9 @@
 // src/shared/components/RightPanel/components/EditMode/EdgeEdit.tsx
-
-import React, { useState, useEffect } from 'react';
-import { EditorEdge } from '../../../../../types';
-import { PropertyGroup, PropertyLabel, PropertyInput, StatusBadge } from '../../RightPanel.styles';
+import { useState, useEffect } from 'react';
+import { EditorEdge, ConnectionType } from '../../../../../types';
+import { PropertyGroup, PropertyLabel, PropertyInput, StatusBadge, NoSelectionMessage } from '../../RightPanel.styles';
 import { debounce } from 'lodash';
+import React from 'react';
 
 interface EdgeEditProps {
   edge: EditorEdge;
@@ -12,9 +12,26 @@ interface EdgeEditProps {
 }
 
 const EdgeEdit: React.FC<EdgeEditProps> = ({ edge, onDataChange, initialData }) => {
+  // Для CABLE_DEVICE типа - не показываем редактирование
+  if (edge.connectionType === ConnectionType.CABLE_DEVICE) {
+    return (
+      <NoSelectionMessage>
+        <span>🔌</span>
+        <p>Это техническая связь между кабелем и устройством.<br />
+        Параметры кабеля можно отредактировать,<br />
+        выбрав сам кабель на схеме.</p>
+      </NoSelectionMessage>
+    );
+  }
+
+  // Для FACTOR_ELEMENT типа - редактируем расстояние
   const [formData, setFormData] = useState({
-    lengthM: initialData?.lengthM !== undefined ? initialData.lengthM : (edge.lengthM || 10),
-    isActive: initialData?.isActive !== undefined ? initialData.isActive : (edge.isActive !== false),
+    distance: initialData?.distance !== undefined 
+      ? initialData.distance 
+      : (edge.factorData?.distance || 10),
+    isActive: initialData?.isActive !== undefined 
+      ? initialData.isActive 
+      : (edge.isActive !== false),
   });
 
   const debouncedOnDataChange = React.useCallback(
@@ -35,27 +52,41 @@ const EdgeEdit: React.FC<EdgeEditProps> = ({ edge, onDataChange, initialData }) 
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const getFactorTypeLabel = () => {
+    const factorType = edge.factorData?.factorType;
+    switch (factorType) {
+      case "TEMPERATURE": return "🌡️ Температура";
+      case "EMI": return "⚡ ЭМИ";
+      case "VIBRATION": return "📳 Вибрация";
+      case "DUST": return "🏭 Запыленность";
+      default: return "📊 Фактор";
+    }
+  };
+
   return (
     <>
       <PropertyGroup>
-        <PropertyLabel>Длина кабеля (м)</PropertyLabel>
+        <PropertyLabel>Тип воздействия</PropertyLabel>
         <PropertyInput
-          type="number"
-          step="1"
-          value={formData.lengthM}
-          onChange={(e) => handleChange('lengthM', parseFloat(e.target.value))}
-        />
-      </PropertyGroup>
-      <PropertyGroup>
-        <PropertyLabel>Пропускная способность</PropertyLabel>
-        <PropertyInput
-          type="number"
-          value={edge.bandwidthMbps || 1000}
+          type="text"
+          value={getFactorTypeLabel()}
           disabled
         />
       </PropertyGroup>
+
       <PropertyGroup>
-        <PropertyLabel>Статус</PropertyLabel>
+        <PropertyLabel>Расстояние до источника (м)</PropertyLabel>
+        <PropertyInput
+          type="number"
+          step="1"
+          min="0"
+          value={formData.distance}
+          onChange={(e) => handleChange('distance', parseFloat(e.target.value))}
+        />
+      </PropertyGroup>
+      
+      <PropertyGroup>
+        <PropertyLabel>Статус связи</PropertyLabel>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
             <input
@@ -63,7 +94,7 @@ const EdgeEdit: React.FC<EdgeEditProps> = ({ edge, onDataChange, initialData }) 
               checked={formData.isActive}
               onChange={() => handleChange('isActive', true)}
             />
-            Активен
+            Активна
           </label>
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
             <input
@@ -71,11 +102,11 @@ const EdgeEdit: React.FC<EdgeEditProps> = ({ edge, onDataChange, initialData }) 
               checked={!formData.isActive}
               onChange={() => handleChange('isActive', false)}
             />
-            Неактивен
+            Неактивна
           </label>
         </div>
         <StatusBadge status={formData.isActive ? "success" : "error"} style={{ marginTop: '8px' }}>
-          {formData.isActive ? "🟢 Активен" : "🔴 Неактивен"}
+          {formData.isActive ? "🟢 Активна" : "🔴 Неактивна"}
         </StatusBadge>
       </PropertyGroup>
     </>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 import ReactFlow, {
   Controls,
   MiniMap,
@@ -27,7 +27,7 @@ import { useStores } from "../../../hooks/useStores";
 import { DeviceNode, SubSchemaNode, CableNode } from "./nodes";
 import { CanvasContainer, CanvasWrapper } from "./NetworkCanvas.styles";
 import AxesWithGrid from "./AxesWithGrid";
-import { EditorEdge, EditorNode, EditorNodes } from "../../types";
+import { ConnectionType, EditorEdge, EditorNode, EditorNodes } from "../../types";
 
 const nodeTypes: NodeTypes = {
   device: DeviceNode,
@@ -44,6 +44,7 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
   const { setCenter, setViewport } = useReactFlow();
   const viewport = useViewport();
 
+  // Отладка
   useEffect(() => {
     (window as any).debugStore = {
       editorStore,
@@ -56,95 +57,8 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
-  // Функция обновления канваса
-  const refreshCanvas = useCallback(() => {
-    console.log("🔄 Refreshing canvas...");
-    setNodes(convertToReactFlowNodes(editorStore.nodes));
-    setEdges(convertToReactFlowEdges(editorStore.edges));
-  }, [editorStore.nodes, editorStore.edges]);
-
-  // Следим за выделением и обновляем канвас
-  useEffect(() => {
-    console.log("🎯 Selection changed, refreshing canvas");
-    refreshCanvas();
-  }, [editorStore.selectedNodeId, editorStore.selectedEdgeId, refreshCanvas]);
-
-  // Добавляем forceUpdate счетчик
-  const [updateTrigger, setUpdateTrigger] = useState(0);
-  
-  // Функция принудительного обновления канваса
-  const forceCanvasUpdate = useCallback(() => {
-    console.log("🔄 Force canvas update");
-    setNodes(convertToReactFlowNodes(editorStore.nodes));
-    setEdges(convertToReactFlowEdges(editorStore.edges));
-    setUpdateTrigger(prev => prev + 1);
-  }, [editorStore.nodes, editorStore.edges]);
-
-  // Следим за изменением количества узлов и связей
-  useEffect(() => {
-    console.log(`📊 Store changed - nodes: ${editorStore.nodes.length}, edges: ${editorStore.edges.length}`);
-    forceCanvasUpdate();
-  }, [editorStore.nodes.length, editorStore.edges.length, forceCanvasUpdate]);
-
-  // Следим за самими узлами (изменение свойств)
-  useEffect(() => {
-    const nodesChanged = JSON.stringify(editorStore.nodes.map(n => ({ id: n.id, name: n.customName || n.name, position: n.position })));
-    // вызываем обновление при любом изменении
-    forceCanvasUpdate();
-  }, [editorStore.nodes]);
-
-  // Обработчик удаления узлов
-  const onNodesDelete = useCallback((nodesToDelete: Node[]) => {
-    console.log("🗑️ Nodes delete event:", nodesToDelete.map(n => n.id));
-    
-    nodesToDelete.forEach(node => {
-      editorStore.removeNode(node.id);
-    });
-    
-    // Принудительно обновляем канвас
-    setTimeout(() => {
-      forceCanvasUpdate();
-    }, 10);
-    
-    // Сохраняем черновик
-    const schemaId = editorStore.currentSchemaId;
-    if (schemaId && draftStore.currentDraft) {
-      setTimeout(() => {
-        draftStore.updateDraft(schemaId, {
-          nodes: editorStore.nodes,
-          edges: editorStore.edges,
-        });
-      }, 100);
-    }
-  }, [editorStore, draftStore, forceCanvasUpdate]);
-
-  // Обработчик удаления связей
-  const onEdgesDelete = useCallback((edgesToDelete: Edge[]) => {
-    console.log("🗑️ Edges delete event:", edgesToDelete.map(e => e.id));
-    
-    edgesToDelete.forEach(edge => {
-      editorStore.removeEdge(edge.id);
-    });
-    
-    // Принудительно обновляем канвас
-    setTimeout(() => {
-      forceCanvasUpdate();
-    }, 10);
-    
-    // Сохраняем черновик
-    const schemaId = editorStore.currentSchemaId;
-    if (schemaId && draftStore.currentDraft) {
-      setTimeout(() => {
-        draftStore.updateDraft(schemaId, {
-          edges: editorStore.edges,
-        });
-      }, 100);
-    }
-  }, [editorStore, draftStore, forceCanvasUpdate]);
-
+  // ============ КОНВЕРТАЦИЯ УЗЛОВ ============
   const convertToReactFlowNodes = useCallback((storeNodes: EditorNode[]): Node[] => {
-    console.log("Converting nodes, selectedNodeId:", editorStore.selectedNodeId);
-    
     return storeNodes.map(node => {
       const isSelected = editorStore.selectedNodeId === node.id;
       
@@ -193,48 +107,95 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
         },
       };
     });
-  }, [editorStore.nodes, editorStore.selectedNodeId]); // ← зависимость от selectedNodeId
+  }, [editorStore.nodes, editorStore.selectedNodeId]);
 
-  // При конвертации ребер, добавьте selected для жирности
+  // ============ КОНВЕРТАЦИЯ СВЯЗЕЙ ============
   const convertToReactFlowEdges = useCallback((storeEdges: EditorEdge[]): Edge[] => {
-    console.log("Converting edges to React Flow:", storeEdges);
-    console.log("Current nodes in store:", editorStore.nodes.map(n => ({ id: n.id, name: n.name })));
-    
     return storeEdges
       .filter(edge => {
-        // Проверяем, что оба узла существуют
         const sourceExists = editorStore.nodes.some(n => n.id === edge.sourceNodeId);
         const targetExists = editorStore.nodes.some(n => n.id === edge.targetNodeId);
-        
-        if (!sourceExists) {
-          console.warn(`Source node ${edge.sourceNodeId} not found for edge ${edge.id}`);
+        if (!sourceExists || !targetExists) {
+          console.warn(`Edge ${edge.id}: source=${edge.sourceNodeId} exists=${sourceExists}, target=${edge.targetNodeId} exists=${targetExists}`);
         }
-        if (!targetExists) {
-          console.warn(`Target node ${edge.targetNodeId} not found for edge ${edge.id}`);
-        }
-        
         return sourceExists && targetExists;
       })
       .map(edge => {
         const isSelected = editorStore.selectedEdgeId === edge.id;
+        const isHovered = editorStore.hoveredEdgeId === edge.id;
         
-        return {
+        const getEdgeStyle = () => {
+          const baseStyle = { strokeWidth: isSelected ? 3 : 2 };
+          if (edge.connectionType === ConnectionType.CABLE_DEVICE) {
+            return { ...baseStyle, stroke: isSelected ? '#e54848' : (isHovered ? '#3b82f6' : '#94a3b8') };
+          }
+          if (edge.connectionType === ConnectionType.FACTOR_ELEMENT) {
+            return { ...baseStyle, stroke: isSelected ? '#e54848' : (isHovered ? '#f59e0b' : '#d97706'), strokeDasharray: '5,5' };
+          }
+          return { ...baseStyle, stroke: isSelected ? '#e54848' : (isHovered ? '#3b82f6' : '#94a3b8') };
+        };
+        
+        const getEdgeLabel = () => {
+          if (edge.connectionType === ConnectionType.FACTOR_ELEMENT) {
+            return `${edge.factorData?.distance || 0}м`;
+          }
+          return '';
+        };
+        
+        const getLabelStyle = () => {
+          if (edge.connectionType === ConnectionType.CABLE_DEVICE) {
+            return { fill: '#3b82f6', fontSize: 10, fontWeight: 500 };
+          }
+          if (edge.connectionType === ConnectionType.FACTOR_ELEMENT) {
+            return { fill: '#d97706', fontSize: 10, fontWeight: 500 };
+          }
+          return { fill: '#94a3b8', fontSize: 10 };
+        };
+        
+        const baseEdge: Edge = {
           id: edge.id,
           source: edge.sourceNodeId,
           target: edge.targetNodeId,
           sourceHandle: edge.source,
           targetHandle: edge.target,
-          label: `${edge.lengthM}м`,
+          label: getEdgeLabel(),
           selected: isSelected,
-          style: { 
-            stroke: isSelected ? '#e54848' : '#94a3b8', 
-            strokeWidth: isSelected ? 3 : 2,
-          },
+          style: getEdgeStyle(),
+          labelStyle: getLabelStyle(),
+          data: { connectionType: edge.connectionType, factorData: edge.factorData, lengthM: edge.lengthM },
         };
+        
+        if (edge.connectionType === ConnectionType.FACTOR_ELEMENT) {
+          return { ...baseEdge, animated: true, style: { ...baseEdge.style, strokeDasharray: '5,5' } };
+        }
+        return baseEdge;
       });
-  }, [editorStore.nodes, editorStore.selectedEdgeId]);
+  }, [editorStore.nodes, editorStore.selectedEdgeId, editorStore.hoveredEdgeId]);
 
-  // MobX reaction для отслеживания изменений узлов
+  // ============ ОБНОВЛЕНИЕ КАНВАСА ============
+  const refreshCanvas = useCallback(() => {
+    setNodes(convertToReactFlowNodes(editorStore.nodes));
+    setEdges(convertToReactFlowEdges(editorStore.edges));
+  }, [editorStore.nodes, editorStore.edges, convertToReactFlowNodes, convertToReactFlowEdges, setNodes, setEdges]);
+
+  // Следим за выделением и обновляем канвас
+  useEffect(() => {
+    refreshCanvas();
+  }, [editorStore.selectedNodeId, editorStore.selectedEdgeId, refreshCanvas]);
+
+  // Следим за изменением количества узлов и связей
+  useEffect(() => {
+    refreshCanvas();
+  }, [editorStore.nodes.length, editorStore.edges.length, refreshCanvas]);
+
+  // Инициализация
+  useEffect(() => {
+    refreshCanvas();
+  }, [refreshCanvas]);
+
+  // ============ MOBX REACTIONS ДЛЯ АВТОСОХРАНЕНИЯ ЧЕРНОВИКА ============
+  
+  // Реакция на изменение узлов
   useEffect(() => {
     const dispose = reaction(
       () => editorStore.nodes.map(n => ({ 
@@ -242,72 +203,44 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
         name: n.customName || n.name, 
         position: n.position,
         lengthM: n.lengthM,
+        cableType: n.cableType,
       })),
       () => {
-        console.log("🔄 Nodes changed, updating React Flow");
-        setNodes(convertToReactFlowNodes(editorStore.nodes));
-        
-        // Автосохранение при изменении узлов
+        console.log("🔄 Nodes changed, updating draft");
         const schemaId = editorStore.currentSchemaId;
         if (schemaId && draftStore.currentDraft) {
-          console.log("💾 Auto-saving draft after nodes change");
           draftStore.updateDraft(schemaId, {
             nodes: editorStore.nodes,
             edges: editorStore.edges,
           });
         }
       },
-      { delay: 300 }  // задержка 300ms для группировки изменений
+      { delay: 500 }
     );
-    
     return () => dispose();
-  }, [editorStore.nodes, convertToReactFlowNodes, setNodes, draftStore, editorStore.currentSchemaId]);
+  }, [editorStore.nodes, draftStore, editorStore.currentSchemaId]);
 
-  // MobX reaction для отслеживания изменений связей
+  // Реакция на изменение связей
   useEffect(() => {
     const dispose = reaction(
-      () => editorStore.edges.map(e => ({ id: e.id, lengthM: e.lengthM })),
+      () => editorStore.edges.map(e => ({ id: e.id, lengthM: e.lengthM, sourceNodeId: e.sourceNodeId, targetNodeId: e.targetNodeId })),
       () => {
-        console.log("🔄 Edges changed, updating React Flow");
-        setEdges(convertToReactFlowEdges(editorStore.edges));
-        
-        // Автосохранение при изменении связей
+        console.log("🔄 Edges changed, updating draft");
         const schemaId = editorStore.currentSchemaId;
         if (schemaId && draftStore.currentDraft) {
-          console.log("💾 Auto-saving draft after edges change");
           draftStore.updateDraft(schemaId, {
             nodes: editorStore.nodes,
             edges: editorStore.edges,
           });
         }
       },
-      { delay: 300 }
+      { delay: 500 }
     );
-    
     return () => dispose();
-  }, [editorStore.edges, convertToReactFlowEdges, setEdges, draftStore, editorStore.currentSchemaId]);
+  }, [editorStore.edges, draftStore, editorStore.currentSchemaId]);
 
-  // MobX reaction для отслеживания изменений связей
-  useEffect(() => {
-    const dispose = reaction(
-      () => editorStore.edges.map(e => ({ id: e.id, lengthM: e.lengthM })),
-      () => {
-        console.log("🔄 Edges changed, updating React Flow");
-        setEdges(convertToReactFlowEdges(editorStore.edges));
-      },
-      { delay: 100 }
-    );
-    
-    return () => dispose();
-  }, [editorStore.edges, convertToReactFlowEdges, setEdges]);
-
-  // Инициализация при монтировании
-  useEffect(() => {
-    setNodes(convertToReactFlowNodes(editorStore.nodes));
-    setEdges(convertToReactFlowEdges(editorStore.edges));
-  }, []);
-
-  // Обработчики изменений
+  // ============ ОБРАБОТЧИКИ ============
+  
   const onNodesChangeHandler: OnNodesChange = useCallback((changes: NodeChange[]) => {
     onNodesChange(changes);
     changes.forEach((change) => {
@@ -321,51 +254,94 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
     onEdgesChange(changes);
   }, [onEdgesChange]);
 
+  const onNodesDelete = useCallback((nodesToDelete: Node[]) => {
+    nodesToDelete.forEach(node => editorStore.removeNode(node.id));
+    refreshCanvas();
+  }, [editorStore, refreshCanvas]);
+
+  const onEdgesDelete = useCallback((edgesToDelete: Edge[]) => {
+    edgesToDelete.forEach(edge => editorStore.removeEdge(edge.id));
+    refreshCanvas();
+  }, [editorStore, refreshCanvas]);
+
   const onConnect = useCallback((connection: Connection) => {
-    console.log("=== CONNECTION DETECTED ===", connection);
-    
     if (!connection.source || !connection.target) return;
     
-    const edgeId = `${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+    const sourceNode = editorStore.nodes.find(n => n.id === connection.source);
+    const targetNode = editorStore.nodes.find(n => n.id === connection.target);
+    if (!sourceNode || !targetNode) return;
     
-    // ПРАВИЛЬНОЕ создание EditorEdge
-    const newEdge: EditorEdge = {
+    const edgeId = `${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+    let connectionType: ConnectionType = ConnectionType.CABLE_DEVICE;
+    let edgeData: Partial<EditorEdge> = {
       id: edgeId,
-      source: connection.sourceHandle!,        // ID порта источника
-      target: connection.targetHandle!,        // ID порта назначения
-      sourceNodeId: connection.source,         // ID узла-источника
-      targetNodeId: connection.target,         // ID узла-назначения
-      lengthM: 10,
+      source: connection.sourceHandle!,
+      target: connection.targetHandle!,
+      sourceNodeId: connection.source,
+      targetNodeId: connection.target,
       isActive: true,
     };
     
-    console.log("Creating new edge:", newEdge);
+    const isSourceFactor = sourceNode.type === EditorNodes.FACTOR;
+    const isTargetFactor = targetNode.type === EditorNodes.FACTOR;
+    const isSourceCable = sourceNode.type === EditorNodes.CABLE;
+    const isTargetCable = targetNode.type === EditorNodes.CABLE;
+    const isSourceDevice = sourceNode.type === EditorNodes.DEVICE;
+    const isTargetDevice = targetNode.type === EditorNodes.DEVICE;
     
+    if (isSourceFactor || isTargetFactor) {
+      connectionType = ConnectionType.FACTOR_ELEMENT;
+      const factorNode = isSourceFactor ? sourceNode : targetNode;
+      edgeData = {
+        ...edgeData,
+        connectionType,
+        factorData: {
+          factorId: factorNode.id,
+          factorType: factorNode.factorType || "UNKNOWN",
+          distance: 10,
+          attenuation: 0,
+        },
+        lengthM: undefined,
+      };
+    } else if ((isSourceDevice && isTargetCable) || (isSourceCable && isTargetDevice) || (isSourceDevice && isTargetDevice)) {
+      connectionType = ConnectionType.CABLE_DEVICE;
+      edgeData = { ...edgeData, connectionType, lengthM: 10, bandwidthMbps: 1000 };
+    } else {
+      edgeData = { ...edgeData, connectionType: ConnectionType.CABLE_DEVICE, lengthM: 10 };
+    }
+    
+    const newEdge = edgeData as EditorEdge;
     const added = editorStore.addEdge(newEdge);
     
     if (added) {
+      const getEdgeStyle = () => {
+        if (connectionType === ConnectionType.FACTOR_ELEMENT) {
+          return { stroke: '#f59e0b', strokeWidth: 2, strokeDasharray: '5,5' };
+        }
+        return { stroke: '#e54848', strokeWidth: 2 };
+      };
+      
+      const getEdgeLabel = () => connectionType === ConnectionType.FACTOR_ELEMENT ? '10м' : '';
+      
       const reactFlowEdge: Edge = {
         id: edgeId,
-        source: connection.source,              // ID узла-источника для React Flow
-        target: connection.target,              // ID узла-назначения для React Flow
-        sourceHandle: connection.sourceHandle,  // ID порта источника для React Flow
-        targetHandle: connection.targetHandle,  // ID порта назначения для React Flow
-        label: '10м',
-        style: { stroke: '#e54848', strokeWidth: 2 },
+        source: connection.source,
+        target: connection.target,
+        sourceHandle: connection.sourceHandle,
+        targetHandle: connection.targetHandle,
+        label: getEdgeLabel(),
+        style: getEdgeStyle(),
+        data: { connectionType, ...edgeData },
       };
+      
       setEdges((eds) => addEdge(reactFlowEdge, eds));
       
-      // Сохраняем черновик
-      const schemaId = editorStore.currentSchemaId;
-      if (schemaId && draftStore.currentDraft) {
-        setTimeout(() => {
-          draftStore.updateDraft(schemaId, {
-            edges: editorStore.edges,
-          });
-        }, 100);
+      if (connectionType === ConnectionType.CABLE_DEVICE) {
+        editorStore.setPortConnection(connection.source, connection.sourceHandle!, true);
+        editorStore.setPortConnection(connection.target, connection.targetHandle!, true);
       }
     }
-  }, [editorStore, setEdges, draftStore]);
+  }, [editorStore, setEdges]);
 
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
     editorStore.selectNode(node.id);
@@ -381,15 +357,11 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
 
   // Центрирование
   useEffect(() => {
-    setTimeout(() => {
-      setCenter(0, 0, { zoom: 1, duration: 300 });
-    }, 100);
+    setTimeout(() => setCenter(0, 0, { zoom: 1, duration: 300 }), 100);
   }, [setCenter]);
 
   useEffect(() => {
-    setTimeout(() => {
-      setViewport({ x: 0, y: 0, zoom: 1 });
-    }, 100);
+    setTimeout(() => setViewport({ x: 0, y: 0, zoom: 1 }), 100);
   }, [setViewport]);
 
   return (

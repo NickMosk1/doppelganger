@@ -9,6 +9,28 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 @Entity
 @Table(name = "connections")
 public class Connection {
+
+    public enum ConnectionType {
+        CABLE_DEVICE,
+        FACTOR_ELEMENT
+    }
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "connection_type")
+    private ConnectionType connectionType = ConnectionType.CABLE_DEVICE;
+    
+    // Для FACTOR_ELEMENT
+    @Column(name = "factor_id")
+    private String factorId;
+    
+    @Column(name = "factor_type")
+    private String factorType;
+    
+    @Column(name = "distance")
+    private Double distance;
+    
+    @Column(name = "attenuation")
+    private Double attenuation;
     
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -59,6 +81,9 @@ public class Connection {
         if (targetPortId == null) {
             targetPortId = "";
         }
+        if (connectionType == null) {
+            connectionType = ConnectionType.CABLE_DEVICE;
+        }
     }
     
     @PreUpdate
@@ -67,6 +92,7 @@ public class Connection {
     }
     
     // Getters and Setters
+    
     public String getId() {
         return id;
     }
@@ -153,5 +179,45 @@ public class Connection {
     
     public void setBandwidthMbps(Double bandwidthMbps) {
         this.bandwidthMbps = bandwidthMbps;
+    }
+    
+    public ConnectionType getConnectionType() {
+        return connectionType;
+    }
+    
+    public void setConnectionType(ConnectionType connectionType) {
+        this.connectionType = connectionType;
+    }
+    
+    public String getFactorId() {
+        return factorId;
+    }
+    
+    public void setFactorId(String factorId) {
+        this.factorId = factorId;
+    }
+    
+    public String getFactorType() {
+        return factorType;
+    }
+    
+    public void setFactorType(String factorType) {
+        this.factorType = factorType;
+    }
+    
+    public Double getDistance() {
+        return distance;
+    }
+    
+    public void setDistance(Double distance) {
+        this.distance = distance;
+    }
+    
+    public Double getAttenuation() {
+        return attenuation;
+    }
+    
+    public void setAttenuation(Double attenuation) {
+        this.attenuation = attenuation;
     }
 }

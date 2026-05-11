@@ -49,11 +49,12 @@ const RightPanel: React.FC = observer(() => {
   const saveDraft = useCallback(() => {
     const schemaId = editorStore.currentSchemaId;
     if (schemaId && draftStore.currentDraft) {
-      console.log("💾 Saving draft after edit");
+      console.log("💾 Updating draft data");
       draftStore.updateDraft(schemaId, {
         nodes: editorStore.nodes,
         edges: editorStore.edges,
       });
+      // НЕ вызываем markAsSaved, так как изменения еще не сохранены на бэке
     }
   }, [editorStore, draftStore]);
 
@@ -182,13 +183,15 @@ const RightPanel: React.FC = observer(() => {
           <PanelTitle>{getTitle()}</PanelTitle>
           {hasSelection && (
             <ButtonGroup>
-              {mode === "view" ? (
-                <EditModeButton onClick={handleEdit}>Редактировать</EditModeButton>
-              ) : (
-                <>
-                  <ViewModeButton onClick={handleSave}>Сохранить</ViewModeButton>
-                  <EditModeButton onClick={handleExitEdit}>Отмена</EditModeButton>
-                </>
+              {!!selectedNode?.type && (
+                mode === "view" ? (
+                  <EditModeButton onClick={handleEdit}>Редактировать</EditModeButton>
+                ) : (
+                  <>
+                    <ViewModeButton onClick={handleSave}>Сохранить</ViewModeButton>
+                    <EditModeButton onClick={handleExitEdit}>Отмена</EditModeButton>
+                  </>
+                )
               )}
               <DeleteButton onClick={() => setShowDeleteDialog(true)}>Удалить</DeleteButton>
             </ButtonGroup>

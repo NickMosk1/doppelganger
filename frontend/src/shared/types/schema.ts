@@ -1,4 +1,4 @@
-import { CableTypes, DeviceTypes, EditorNodes, NodeStatus } from "./index";
+import { CableTypes, ConnectionType, DeviceTypes, EditorNodes } from "./index";
 
 export interface SchemaNodeDevice {
   id: string;
@@ -23,35 +23,49 @@ export interface SchemaConnectionCable {
   attenuationDbPerKm?: number;
 }
 
-export interface SchemaConnection {
-  id: string;
-  lengthM: number;
-  bandwidthMbps?: number;
-  sourceNode: SchemaNodeRef;
-  targetNode: SchemaNodeRef;
-  cable: SchemaConnectionCable;
-  sourcePortId?: string;  // Добавлено
-  targetPortId?: string;  // Добавлено
-}
+// src/services/editor.service.ts
 
 export interface SchemaNode {
   id: string;
   customName: string;
-  nodeType: EditorNodes;
+  nodeType: string;
   positionX: number;
   positionY: number;
-  device?: SchemaNodeDevice;
-  childSchemaId?: string;
-  isEnabled?: boolean;
-  status?: NodeStatus;
-  temperatureOffset?: number;
-  emiOffset?: number;
-  vibrationOffset?: number;
-  
-  // Поля для кабелей
-  cableLengthM?: number;
+  device?: {
+    id: string;
+    name: string;
+    type: string;
+    manufacturer: string;
+  };
+  // Добавляем поля для кабелей
+  lengthM?: number;
   cableType?: string;
-  name?: string;
+  bandwidthMbps?: number;
+  // Добавляем поля для факторов
+  factorType?: string;
+  factorValue?: number;
+  factorUnit?: string;
+  factorRadius?: number;
+}
+
+export interface SchemaConnection {
+  id: string;
+  lengthM: number;
+  sourceNode: { id: string; customName: string };
+  targetNode: { id: string; customName: string };
+  cable?: { id: string; name: string; type: string };
+  // Добавляем поля для портов
+  sourcePortId?: string;
+  targetPortId?: string;
+  // Добавляем тип связи
+  connectionType: ConnectionType;
+  // Добавляем данные для FACTOR_ELEMENT
+  factorData?: {
+    factorId: string;
+    factorType: string;
+    distance: number;
+    attenuation: number;
+  };
 }
 
 export interface SchemaFull {

@@ -46,10 +46,6 @@ const CableView: React.FC<CableViewProps> = ({ node, editorStore }) => {
                 </ConnectionHeader>
                 <ConnectionDetails>
                   <DetailItem>
-                    <DetailLabel>Длина:</DetailLabel>
-                    <DetailValue>{edge.lengthM} м</DetailValue>
-                  </DetailItem>
-                  <DetailItem>
                     <DetailLabel>Статус:</DetailLabel>
                     <DetailValue>{edge.isActive ? "🟢 Активен" : "🔴 Неактивен"}</DetailValue>
                   </DetailItem>

@@ -8,6 +8,7 @@ class EditorStore {
   private _selectedNodeId: Nullable<string> = null;
   private _selectedEdgeId: Nullable<string> = null;
   private _selectedCableId: Nullable<string> = null;
+  private _hoveredEdgeId: Nullable<string> = null;
   private _isLoading: boolean = false;
   private _validationErrors: any[] = [];
 
@@ -19,6 +20,14 @@ class EditorStore {
 
   constructor() {
     makeAutoObservable(this);
+  }
+
+  get hoveredEdgeId() {
+    return this._hoveredEdgeId;
+  }
+
+  setHoveredEdgeId(id: Nullable<string>) {
+    this._hoveredEdgeId = id;
   }
 
   get nodes() {
@@ -169,12 +178,13 @@ class EditorStore {
   updateEdge(edgeId: string, data: Partial<EditorEdge>) {
     const edge = this._edges.find(e => e.id === edgeId);
     if (edge) {
-      if (data.lengthM !== undefined) edge.lengthM = data.lengthM;
-      if (data.cableId !== undefined) edge.cableId = data.cableId;
-      if (data.cableInfo !== undefined) edge.cableInfo = data.cableInfo;
-      if (data.bandwidthMbps !== undefined) edge.bandwidthMbps = data.bandwidthMbps;
-      if (data.isActive !== undefined) edge.isActive = data.isActive;
-      if (data.status !== undefined) edge.status = data.status;
+      // Применяем все переданные поля
+      Object.assign(edge, data);
+      
+      // Обработка специфичных для FACTOR_ELEMENT полей
+      if (data.factorData && edge.factorData) {
+        edge.factorData = { ...edge.factorData, ...data.factorData };
+      }
     }
   }
 
@@ -221,6 +231,7 @@ class EditorStore {
     this._edges = [];
     this._selectedNodeId = null;
     this._selectedEdgeId = null;
+    this._hoveredEdgeId = null;
     this._selectedCableId = null;
     this._validationErrors = [];
     this._currentSchemaId = null;
@@ -350,7 +361,7 @@ class EditorStore {
   }
 
   // Обновление состояния порта
-  private updatePortConnection(nodeId: string, portId: string, isConnected: boolean) {
+  updatePortConnection(nodeId: string, portId: string, isConnected: boolean) {
     const node = this._nodes.find(n => n.id === nodeId);
     if (node && node.ports) {
       const port = node.ports.find(p => p.id === portId);
@@ -453,6 +464,16 @@ class EditorStore {
     this._selectedNodeId = null;
     this._selectedCableId = null;
     console.log("New selectedEdgeId:", this._selectedEdgeId);
+  }
+
+  setPortConnection(nodeId: string, portId: string, isConnected: boolean) {
+    const node = this._nodes.find(n => n.id === nodeId);
+    if (node && node.ports) {
+      const port = node.ports.find(p => p.id === portId);
+      if (port) {
+        port.isConnected = isConnected;
+      }
+    }
   }
 }
 

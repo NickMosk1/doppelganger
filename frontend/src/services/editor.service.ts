@@ -1,5 +1,6 @@
 import { SchemaFull, ValidationResult } from "../shared";
 import { api } from "../utils/api";
+import { ConnectionType } from "../shared/types";
 
 class EditorService {
   
@@ -26,11 +27,51 @@ class EditorService {
     await api.delete(`/schemas/${id}`);
   }
 
-  async createNode(schemaId: string, deviceId: string, position: { x: number; y: number }, customName?: string): Promise<{ id: string }> {
+  async createDeviceNode(schemaId: string, deviceId: string, position: { x: number; y: number }, customName?: string): Promise<{ id: string }> {
     const response = await api.post(`/schemas/${schemaId}/nodes/devices/${deviceId}`, {
       positionX: position.x,
       positionY: position.y,
       customName,
+    });
+    return response.data;
+  }
+
+  // Новый метод для создания кабеля как узла
+  async createCableNode(schemaId: string, cableNode: {
+    name: string;
+    customName?: string;
+    position: { x: number; y: number };
+    lengthM: number;
+    cableType: string;
+    bandwidthMbps?: number;
+  }): Promise<{ id: string }> {
+    const response = await api.post(`/schemas/${schemaId}/nodes/cables`, {
+      name: cableNode.name,
+      customName: cableNode.customName,
+      positionX: cableNode.position.x,
+      positionY: cableNode.position.y,
+      lengthM: cableNode.lengthM,
+      cableType: cableNode.cableType,
+      bandwidthMbps: cableNode.bandwidthMbps,
+    });
+    return response.data;
+  }
+
+  // Новый метод для создания фактора как узла
+  async createFactorNode(schemaId: string, factorNode: {
+    factorType: string;
+    name: string;
+    position: { x: number; y: number };
+    value: number;
+    unit: string;
+  }): Promise<{ id: string }> {
+    const response = await api.post(`/schemas/${schemaId}/nodes/factors`, {
+      factorType: factorNode.factorType,
+      name: factorNode.name,
+      positionX: factorNode.position.x,
+      positionY: factorNode.position.y,
+      factorValue: factorNode.value,
+      factorUnit: factorNode.unit,
     });
     return response.data;
   }
@@ -42,12 +83,51 @@ class EditorService {
     });
   }
 
+  async updateNodeName(nodeId: string, customName: string): Promise<void> {
+    await api.put(`/schemas/nodes/${nodeId}/name`, { customName });
+  }
+
   async deleteNode(nodeId: string): Promise<void> {
     await api.delete(`/schemas/nodes/${nodeId}`);
   }
 
-  async updateConnection(connectionId: string, lengthM: number): Promise<void> {
-    await api.put(`/schemas/connections/${connectionId}`, { lengthM });
+  // Обновленный метод для создания связи с поддержкой двух типов
+  async createConnection(
+    schemaId: string, 
+    sourceNodeId: string, 
+    targetNodeId: string, 
+    data: {
+      sourcePortId?: string;
+      targetPortId?: string;
+      connectionType: ConnectionType;
+      lengthM?: number;
+      distance?: number;
+      factorId?: string;
+      factorType?: string;
+      attenuation?: number;
+    }
+  ): Promise<{ id: string }> {
+    const response = await api.post(`/schemas/${schemaId}/connections`, {
+      sourceNodeId,
+      targetNodeId,
+      sourcePortId: data.sourcePortId,
+      targetPortId: data.targetPortId,
+      connectionType: data.connectionType,
+      lengthM: data.lengthM,
+      distance: data.distance,
+      factorData: data.factorId ? {
+        factorId: data.factorId,
+        factorType: data.factorType,
+        distance: data.distance,
+        attenuation: data.attenuation,
+      } : undefined,
+    });
+    return response.data;
+  }
+
+  // Обновленный метод для обновления связи
+  async updateConnection(connectionId: string, data: { lengthM?: number; distance?: number; isActive?: boolean }): Promise<void> {
+    await api.put(`/schemas/connections/${connectionId}`, data);
   }
 
   async deleteConnection(connectionId: string): Promise<void> {
@@ -64,28 +144,6 @@ class EditorService {
     return response.data;
   }
 
-  async createCableNode(schemaId: string, cableNode: any): Promise<any> {
-    const response = await api.post(`/schemas/${schemaId}/nodes/cables`, {
-      name: cableNode.name,
-      customName: cableNode.customName,
-      positionX: cableNode.position.x,
-      positionY: cableNode.position.y,
-      lengthM: cableNode.lengthM,
-      cableType: cableNode.cableType,
-    });
-    return response.data;
-  }
-
-  async createConnection(schemaId: string, sourceNodeId: string, targetNodeId: string, cableId: string, lengthM: number): Promise<any> {
-    const response = await api.post(`/schemas/${schemaId}/connections`, {
-      sourceNodeId,
-      targetNodeId,
-      cableId,
-      lengthM,
-    });
-    return response.data;
-  }
-
   async getSchemaNodes(schemaId: string): Promise<any[]> {
     const response = await api.get(`/schemas/${schemaId}/nodes`);
     return response.data;
@@ -96,6 +154,7 @@ class EditorService {
     return response.data;
   }
 
+  // Обновленный метод для полного сохранения схемы
   async updateFullSchema(schemaId: string, schemaData: any): Promise<Record<string, string>> {
     const response = await api.put(`/schemas/${schemaId}/full`, schemaData);
     return response.data;

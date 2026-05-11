@@ -21,7 +21,7 @@ class RootStore {
     this.editorStore = new EditorStore();
     this.catalogStore = new CatalogStore();
     this.schemaStore = new SchemaStore();
-    this.draftStore = new DraftStore();
+    this.draftStore = new DraftStore(this);
     this.simulationStore = new SimulationStore();
   };
 };
