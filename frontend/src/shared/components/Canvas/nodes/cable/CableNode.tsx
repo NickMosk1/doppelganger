@@ -1,3 +1,4 @@
+// src/shared/components/Canvas/nodes/CableNode.tsx
 import { Handle, Position } from "reactflow";
 import { observer } from "mobx-react-lite";
 import styled from "styled-components";
@@ -35,6 +36,26 @@ const CableName = styled.span`
 const CableLength = styled.span`
   font-size: 9px;
   color: #94a3b8;
+`;
+
+// Handle для подключения факторов (снизу)
+const FactorHandle = styled(Handle)`
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 12px;
+  background: #f59e0b;
+  border-radius: 50%;
+  border: 2px solid white;
+  cursor: crosshair;
+  z-index: 10;
+  
+  &:hover {
+    background: #e54848;
+    transform: translateX(-50%) scale(1.2);
+  }
 `;
 
 interface CableNodeProps {
@@ -84,6 +105,13 @@ const CableNode: React.FC<CableNodeProps> = observer(({ data, selected }) => {
           cursor: 'crosshair',
           zIndex: 10,
         }}
+      />
+
+      {/* Handle для подключения факторов (снизу) */}
+      <FactorHandle
+        type="target"
+        position={Position.Bottom}
+        id="factor-connection"
       />
     </CableNodeContainer>
   );

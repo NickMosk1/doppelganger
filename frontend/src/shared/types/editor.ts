@@ -1,21 +1,23 @@
+// src/shared/types/editor.ts
+
 export interface NodePosition {
   x: number;
   y: number;
-};
+}
 
 export enum EditorNodes {
   DEVICE = "DEVICE",
   SUBSCHEMA = "SUBSCHEMA",
   CABLE = "CABLE",
   FACTOR = "FACTOR",
-};
+}
 
 export enum EdgeStatus {
   ACTIVE = "ACTIVE",
   DEGRADED = "DEGRADED",
   FAILED = "FAILED",
   OVERLOADED = "OVERLOADED",
-};
+}
 
 export enum NodeStatus {
   OPERATIONAL = "OPERATIONAL",
@@ -23,7 +25,7 @@ export enum NodeStatus {
   FAILED = "FAILED",
   OVERHEATING = "OVERHEATING",
   OFFLINE = "OFFLINE",
-};
+}
 
 export enum PortType {
   INPUT = "INPUT",
@@ -31,7 +33,16 @@ export enum PortType {
   ETHERNET = "ETHERNET",
   FIBER = "FIBER",
   SERIAL = "SERIAL",
-};
+}
+
+export interface Port {
+  id: string;
+  name: string;
+  type: PortType;
+  speed?: number;
+  isConnected: boolean;
+  position?: NodePosition;
+}
 
 export interface CableInfo {
   id: string;
@@ -43,68 +54,19 @@ export interface CableInfo {
   immunityRating?: number;
   temperatureRating?: number;
   icon?: string;
-};
-
-export interface CableNode extends EditorNode {
-  type: EditorNodes.CABLE;
-  sourcePortId: string;
-  targetPortId: string;
-  sourceNodeId: string;
-  targetNodeId: string;
-  cableId?: string;
-  lengthM: number;
-  bandwidthMbps?: number;
-};
-
-export interface EditorNode {
-  id: string;
-  type: EditorNodes;
-  deviceId?: string;
-  schemaId?: string;
-  name: string;
-  position: NodePosition;
-  customName?: string;
-  status?: NodeStatus;
-  isEnabled?: boolean;
-  ports?: Port[];
-  
-  // Для кабелей
-  lengthM?: number;
-  cableType?: string;
-  bandwidthMbps?: number;  // Добавляем пропускную способность для кабелей
-  
-  // Для факторов (промышленные источники)
-  factorType?: string;
-  factorValue?: number;
-  factorUnit?: string;
-  factorRadius?: number;
-  
-  // Промышленные факторы для устройств
-  temperatureOffset?: number;
-  emiOffset?: number;
-  vibrationOffset?: number;
-  dustOffset?: number;
-  
-  // Параметры устройства
-  baseLatencyMs?: number;
-  maxThroughputMbps?: number;
-  icon?: string;
-  color?: string;
-  
-  isCustom?: boolean;  // Добавляем флаг пользовательского элемента
 }
 
 // Типы связей
 export enum ConnectionType {
-  CABLE_DEVICE = "CABLE_DEVICE",     // связь между кабелем и устройством
-  FACTOR_ELEMENT = "FACTOR_ELEMENT", // связь между промышленным фактором и элементом
+  CABLE_DEVICE = "CABLE_DEVICE",
+  FACTOR_ELEMENT = "FACTOR_ELEMENT",
 }
 
 export interface FactorConnectionData {
-  factorId: string;      // ID источника (EMI, температура, вибрация)
-  factorType: string;    // тип фактора
-  distance: number;      // расстояние до элемента (метры)
-  attenuation: number;   // ослабление воздействия с расстоянием
+  factorId: string;
+  factorType: string;
+  distance: number;
+  attenuation: number;
 }
 
 export interface EditorEdge {
@@ -119,8 +81,8 @@ export interface EditorEdge {
   lengthM?: number;
   bandwidthMbps?: number;
   cableId?: string;
-  cableInfo?: CableInfo;  // Добавляем cableInfo
-  status?: EdgeStatus;     // Добавляем status
+  cableInfo?: CableInfo;
+  status?: EdgeStatus;
   
   // Для FACTOR_ELEMENT
   factorData?: {
@@ -133,14 +95,80 @@ export interface EditorEdge {
   isActive?: boolean;
 }
 
-export interface Port {
+export interface EditorNode {
   id: string;
+  type: EditorNodes;
+  
+  // Базовые поля
   name: string;
-  type: PortType;
-  speed?: number; // Мбит/с
-  isConnected: boolean;
-  position?: NodePosition; // Относительная позиция на ноде
-};
+  customName?: string;
+  position: NodePosition;
+  
+  // Статус и состояние
+  status?: NodeStatus;
+  isEnabled?: boolean;
+  
+  // Для DEVICE
+  deviceId?: string;
+  device?: {
+    id: string;
+    name: string;
+    type: string;
+    manufacturer: string;
+    baseLatencyMs?: number;
+    maxThroughputMbps?: number;
+  };
+  ports?: Port[];
+  baseLatencyMs?: number;
+  maxThroughputMbps?: number;
+  manufacturer?: string;
+  
+  // Для CABLE
+  lengthM?: number;
+  cableLengthM?: number;
+  cableType?: string;
+  bandwidthMbps?: number;
+  
+  // Для FACTOR
+  factor?: {
+    factorType: string;
+    factorValue: number;
+    factorUnit: string;
+    factorRadius: number;
+  };
+  factorType?: string;
+  factorValue?: number;
+  factorUnit?: string;
+  factorRadius?: number;
+  
+  // Для SUBSCHEMA
+  schemaId?: string;
+  
+  // Промышленные смещения (для всех типов)
+  temperatureOffset?: number;
+  emiOffset?: number;
+  vibrationOffset?: number;
+  dustOffset?: number;
+  
+  // Визуальные
+  icon?: string;
+  color?: string;
+  
+  // Флаги
+  isCustom?: boolean;
+}
+
+// Для обратной совместимости с CableNode
+export interface CableNode extends EditorNode {
+  type: EditorNodes.CABLE;
+  sourcePortId: string;
+  targetPortId: string;
+  sourceNodeId: string;
+  targetNodeId: string;
+  cableId?: string;
+  lengthM: number;
+  bandwidthMbps?: number;
+}
 
 export interface UpdateFullSchemaRequest {
   name: string;

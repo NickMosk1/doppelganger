@@ -91,4 +91,13 @@ public class ConnectionService {
         List<Connection> connections = connectionRepository.findBySchemaId(schemaId);
         connectionRepository.deleteAll(connections);
     }
+
+    public void deleteAllBySchemaId(String schemaId) {
+        List<Connection> connections = connectionRepository.findBySchemaId(schemaId);
+        connectionRepository.deleteAll(connections);
+    }
+
+    public void save(Connection connection) {
+        connectionRepository.save(connection);
+    }
 }

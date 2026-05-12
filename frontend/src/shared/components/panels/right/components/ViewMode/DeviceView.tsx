@@ -5,22 +5,42 @@ interface DeviceViewProps {
   node: EditorNode;
 }
 
-const DeviceView: React.FC<DeviceViewProps> = ({ node }) => {
-  const getStatusColor = (status?: string) => {
-    switch (status) {
-      case "OPERATIONAL": return "success";
-      case "DEGRADED": return "warning";
-      case "FAILED": return "error";
-      default: return "default";
-    }
-  };
+const getStatusColor = (status?: string) => {
+  switch (status) {
+    case "OPERATIONAL": return "success";
+    case "DEGRADED": return "warning";
+    case "FAILED": return "error";
+    default: return "default";
+  }
+};
 
-  const getStatusText = (status?: string) => {
-    switch (status) {
-      case "OPERATIONAL": return "🟢 Работает";
-      case "DEGRADED": return "🟡 Деградация";
-      case "FAILED": return "🔴 Отказ";
-      default: return "⚪ Неизвестно";
+const getStatusText = (status?: string) => {
+  switch (status) {
+    case "OPERATIONAL": return "🟢 Работает";
+    case "DEGRADED": return "🟡 Деградация";
+    case "FAILED": return "🔴 Отказ";
+    default: return "⚪ Неизвестно";
+  }
+};
+
+const DeviceView: React.FC<DeviceViewProps> = ({ node }) => {
+  const deviceData = node.device;
+  const deviceName = node.customName || deviceData?.name || node.name;
+  const deviceType = deviceData?.type || "DEVICE";
+  const manufacturer = deviceData?.manufacturer;
+  const baseLatencyMs = deviceData?.baseLatencyMs ?? node.baseLatencyMs ?? 0;
+  const maxThroughputMbps = deviceData?.maxThroughputMbps ?? node.maxThroughputMbps ?? 0;
+  const status = node.status;
+
+  const getDeviceTypeLabel = (type?: string) => {
+    switch (type) {
+      case "ROUTER": return "Маршрутизатор";
+      case "SWITCH": return "Коммутатор";
+      case "PLC": return "ПЛК";
+      case "SERVER": return "Сервер";
+      case "WORKSTATION": return "Рабочая станция";
+      case "FIREWALL": return "Фаервол";
+      default: return "Устройство";
     }
   };
 
@@ -28,25 +48,34 @@ const DeviceView: React.FC<DeviceViewProps> = ({ node }) => {
     <>
       <PropertyGroup>
         <PropertyLabel>Название</PropertyLabel>
-        <PropertyValue>{node.customName || node.name}</PropertyValue>
+        <PropertyValue>{deviceName}</PropertyValue>
       </PropertyGroup>
+      
+      <PropertyGroup>
+        <PropertyLabel>Производитель</PropertyLabel>
+        <PropertyValue>{manufacturer || "—"}</PropertyValue>
+      </PropertyGroup>
+
       <PropertyGroup>
         <PropertyLabel>Тип</PropertyLabel>
-        <PropertyValue>Устройство</PropertyValue>
+        <PropertyValue>{getDeviceTypeLabel(deviceType)}</PropertyValue>
       </PropertyGroup>
+
       <PropertyGroup>
         <PropertyLabel>Статус</PropertyLabel>
-        <StatusBadge status={getStatusColor(node.status)}>
-          {getStatusText(node.status)}
+        <StatusBadge status={getStatusColor(status)}>
+          {getStatusText(status)}
         </StatusBadge>
       </PropertyGroup>
+
       <PropertyGroup>
         <PropertyLabel>Базовая задержка</PropertyLabel>
-        <PropertyValue>{node.baseLatencyMs || 0} мс</PropertyValue>
+        <PropertyValue>{baseLatencyMs} мс</PropertyValue>
       </PropertyGroup>
+
       <PropertyGroup>
         <PropertyLabel>Макс. пропускная способность</PropertyLabel>
-        <PropertyValue>{node.maxThroughputMbps || 0} Мбит/с</PropertyValue>
+        <PropertyValue>{maxThroughputMbps} Мбит/с</PropertyValue>
       </PropertyGroup>
     </>
   );

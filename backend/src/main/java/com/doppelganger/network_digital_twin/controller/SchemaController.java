@@ -2,16 +2,24 @@ package com.doppelganger.network_digital_twin.controller;
 
 import com.doppelganger.network_digital_twin.dto.SchemaFullDto;
 import com.doppelganger.network_digital_twin.dto.SchemaSummaryDto;
-import com.doppelganger.network_digital_twin.entity.Schema;
-import com.doppelganger.network_digital_twin.entity.SchemaNode;
+import com.doppelganger.network_digital_twin.entity.*;
+import com.doppelganger.network_digital_twin.entity.SchemaNode.NodeType;
 import com.doppelganger.network_digital_twin.service.SchemaService;
 import com.doppelganger.network_digital_twin.service.SchemaNodeService;
 import com.doppelganger.network_digital_twin.service.ConnectionService;
+import com.doppelganger.network_digital_twin.repository.ConnectionRepository;
+import com.doppelganger.network_digital_twin.repository.DeviceRepository;
+import com.doppelganger.network_digital_twin.repository.SchemaNodeRepository;
+import com.doppelganger.network_digital_twin.repository.SchemaRepository;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,16 +33,23 @@ public class SchemaController {
     private static final Logger log = LoggerFactory.getLogger(SchemaController.class);
     
     private final SchemaService schemaService;
-    private final SchemaNodeService schemaNodeService;
-    private final ConnectionService connectionService;
+    private final ConnectionRepository connectionRepository;
+    private final SchemaNodeRepository schemaNodeRepository;
+    private final DeviceRepository deviceRepository;
+    private final SchemaRepository schemaRepository;
 
-    // Исправленный конструктор
-    public SchemaController(SchemaService schemaService, 
+    public SchemaController(SchemaService schemaService,
                             SchemaNodeService schemaNodeService,
-                            ConnectionService connectionService) {
+                            ConnectionService connectionService,
+                            ConnectionRepository connectionRepository,
+                            SchemaNodeRepository schemaNodeRepository,
+                            DeviceRepository deviceRepository,
+                            SchemaRepository schemaRepository) {
         this.schemaService = schemaService;
-        this.schemaNodeService = schemaNodeService;
-        this.connectionService = connectionService;
+        this.connectionRepository = connectionRepository;
+        this.schemaNodeRepository = schemaNodeRepository;
+        this.deviceRepository = deviceRepository;
+        this.schemaRepository = schemaRepository;
     }
     
     @GetMapping
@@ -42,9 +57,7 @@ public class SchemaController {
         List<Schema> schemas = schemaService.getAllSchemas();
         List<SchemaSummaryDto> result = schemas.stream()
             .map(schema -> {
-                // Получаем статистику для каждой схемы
                 Map<String, Object> stats = schemaService.getSchemaStats(schema.getId());
-                
                 return SchemaSummaryDto.builder()
                     .id(schema.getId())
                     .name(schema.getName())
@@ -81,14 +94,16 @@ public class SchemaController {
     @GetMapping("/{id}/full")
     public ResponseEntity<SchemaFullDto> getSchemaFull(@PathVariable String id) {
         log.info("Getting full schema for id: {}", id);
-        try {
-            SchemaFullDto result = schemaService.getSchemaFull(id);
-            log.info("Successfully retrieved full schema: {}", id);
-            return ResponseEntity.ok(result);
-        } catch (Exception e) {
-            log.error("Error getting full schema: {}", e.getMessage(), e);
-            throw e;
+        SchemaFullDto result = schemaService.getSchemaFull(id);
+        
+        // Логируем первую связь для проверки
+        if (result.getConnections() != null && !result.getConnections().isEmpty()) {
+            SchemaFullDto.ConnectionDto first = result.getConnections().get(0);
+            log.info("First connection in response: id={}, sourceNodeId={}, targetNodeId={}", 
+                first.getId(), first.getSourceNodeId(), first.getTargetNodeId());
         }
+        
+        return ResponseEntity.ok(result);
     }
     
     @GetMapping("/{id}/children")
@@ -145,88 +160,155 @@ public class SchemaController {
     }
     
     @PutMapping("/{id}/full")
+    @Transactional
     public ResponseEntity<Map<String, String>> updateFullSchema(
             @PathVariable String id,
             @RequestBody Map<String, Object> request) {
         
         log.info("Updating full schema: {}", id);
         
-        // Очищаем схему
-        schemaService.clearSchema(id);
+        Schema schema = schemaService.getSchemaById(id);
         
-        // Маппинг фронтовых ID -> реальных ID
+        // Удаляем существующие данные
+        connectionRepository.deleteBySchemaId(id);
+        schemaNodeRepository.deleteBySchemaId(id);
+        
         Map<String, String> nodeIdMap = new HashMap<>();
         
         // 1. Сохраняем все узлы
         List<Map<String, Object>> nodes = (List<Map<String, Object>>) request.get("nodes");
-        if (nodes != null && !nodes.isEmpty()) {
-            log.info("Saving {} nodes", nodes.size());
-            
+        if (nodes != null) {
             for (Map<String, Object> node : nodes) {
                 String frontendId = (String) node.get("id");
-                String nodeType = (String) node.get("type");
+                String nodeTypeStr = (String) node.get("type");
+                SchemaNode.NodeType nodeType = SchemaNode.NodeType.valueOf(nodeTypeStr);
                 
-                log.info("Saving node: frontendId={}, type={}", frontendId, nodeType);
+                SchemaNode schemaNode = new SchemaNode();
+                schemaNode.setSchema(schema);
+                schemaNode.setNodeType(nodeType);
+                schemaNode.setName((String) node.get("name"));
+                schemaNode.setCustomName((String) node.get("customName"));
                 
-                if ("DEVICE".equals(nodeType)) {
-                    String deviceId = (String) node.get("deviceId");
-                    double posX = node.containsKey("positionX") ? ((Number) node.get("positionX")).doubleValue() : 0.0;
-                    double posY = node.containsKey("positionY") ? ((Number) node.get("positionY")).doubleValue() : 0.0;
-                    String customName = (String) node.get("customName");
-                    
-                    SchemaNode savedNode = schemaNodeService.addDeviceToSchema(id, deviceId, posX, posY, customName);
-                    nodeIdMap.put(frontendId, savedNode.getId());
-                    log.info("Saved device: {} -> {}", frontendId, savedNode.getId());
-                    
-                } else if ("CABLE".equals(nodeType)) {
-                    String name = (String) node.get("name");
-                    String customName = (String) node.get("customName");
-                    double posX = node.containsKey("positionX") ? ((Number) node.get("positionX")).doubleValue() : 0.0;
-                    double posY = node.containsKey("positionY") ? ((Number) node.get("positionY")).doubleValue() : 0.0;
-                    double lengthM = node.containsKey("lengthM") ? ((Number) node.get("lengthM")).doubleValue() : 10.0;
-                    String cableType = (String) node.getOrDefault("cableType", "ETHERNET");
-                    
-                    SchemaNode savedNode = schemaNodeService.addCableToSchema(id, name, customName, posX, posY, lengthM, cableType);
-                    nodeIdMap.put(frontendId, savedNode.getId());
-                    log.info("Saved cable: {} -> {}", frontendId, savedNode.getId());
+                double posX = node.containsKey("positionX") ? ((Number) node.get("positionX")).doubleValue() : 0.0;
+                double posY = node.containsKey("positionY") ? ((Number) node.get("positionY")).doubleValue() : 0.0;
+                schemaNode.setPositionX(posX);
+                schemaNode.setPositionY(posY);
+                
+                // Общие поля
+                if (node.containsKey("temperatureOffset")) {
+                    schemaNode.setTemperatureOffset(((Number) node.get("temperatureOffset")).doubleValue());
                 }
+                if (node.containsKey("emiOffset")) {
+                    schemaNode.setEmiOffset(((Number) node.get("emiOffset")).doubleValue());
+                }
+                if (node.containsKey("vibrationOffset")) {
+                    schemaNode.setVibrationOffset(((Number) node.get("vibrationOffset")).doubleValue());
+                }
+                if (node.containsKey("dustOffset")) {
+                    schemaNode.setDustOffset(((Number) node.get("dustOffset")).doubleValue());
+                }
+                schemaNode.setIsEnabled(node.containsKey("isEnabled") ? (Boolean) node.get("isEnabled") : true);
+                
+                // Для DEVICE
+                if (nodeType == SchemaNode.NodeType.DEVICE && node.containsKey("deviceId")) {
+                    String deviceId = (String) node.get("deviceId");
+                    Device device = deviceRepository.findById(deviceId).orElse(null);
+                    schemaNode.setDevice(device);
+                    schemaNode.setName(device != null ? device.getName() : "Unknown Device");
+                }
+                
+                // Для CABLE
+                if (nodeType == SchemaNode.NodeType.CABLE) {
+                    if (node.containsKey("lengthM")) {
+                        schemaNode.setCableLengthM(((Number) node.get("lengthM")).doubleValue());
+                    }
+                    if (node.containsKey("cableType")) {
+                        schemaNode.setCableType((String) node.get("cableType"));
+                    }
+                    if (node.containsKey("bandwidthMbps")) {
+                        schemaNode.setBandwidthMbps(((Number) node.get("bandwidthMbps")).doubleValue());
+                    }
+                }
+                
+                // Для FACTOR
+                if (nodeType == SchemaNode.NodeType.FACTOR) {
+                    if (node.containsKey("factorType")) {
+                        schemaNode.setFactorType((String) node.get("factorType"));
+                    }
+                    if (node.containsKey("factorValue")) {
+                        schemaNode.setFactorValue(((Number) node.get("factorValue")).doubleValue());
+                    }
+                    if (node.containsKey("factorUnit")) {
+                        schemaNode.setFactorUnit((String) node.get("factorUnit"));
+                    }
+                    if (node.containsKey("factorRadius")) {
+                        schemaNode.setFactorRadius(((Number) node.get("factorRadius")).doubleValue());
+                    }
+                }
+                
+                // Для SUBSCHEMA
+                if (nodeType == SchemaNode.NodeType.SUBSCHEMA && node.containsKey("schemaId")) {
+                    String childSchemaId = (String) node.get("schemaId");
+                    Schema childSchema = schemaRepository.findById(childSchemaId).orElse(null);
+                    schemaNode.setChildSchema(childSchema);
+                }
+                
+                SchemaNode saved = schemaNodeRepository.save(schemaNode);
+                nodeIdMap.put(frontendId, saved.getId());
+                log.info("Saved {} node: {} -> {}", nodeType, frontendId, saved.getId());
             }
         }
         
-        // 2. Сохраняем связи с правильными ID
+        // 2. Сохраняем связи
         List<Map<String, Object>> connections = (List<Map<String, Object>>) request.get("connections");
-        if (connections != null && !connections.isEmpty()) {
-            log.info("Saving {} connections", connections.size());
-            
+        if (connections != null) {
             for (Map<String, Object> conn : connections) {
                 String frontendSourceId = (String) conn.get("sourceNodeId");
                 String frontendTargetId = (String) conn.get("targetNodeId");
                 
-                // Получаем реальные ID из маппинга
                 String realSourceId = nodeIdMap.get(frontendSourceId);
                 String realTargetId = nodeIdMap.get(frontendTargetId);
                 
                 if (realSourceId == null || realTargetId == null) {
-                    log.warn("Could not find real IDs for connection: {} -> {}", frontendSourceId, frontendTargetId);
+                    log.warn("Could not find real IDs: {} -> {}", frontendSourceId, frontendTargetId);
                     continue;
                 }
                 
-                String sourcePortId = (String) conn.get("sourcePortId");
-                String targetPortId = (String) conn.get("targetPortId");
-                double lengthM = conn.containsKey("lengthM") ? ((Number) conn.get("lengthM")).doubleValue() : 10.0;
+                Connection connection = new Connection();
+                connection.setSchema(schema);
+                connection.setSourceNode(schemaNodeRepository.findById(realSourceId).orElse(null));
+                connection.setTargetNode(schemaNodeRepository.findById(realTargetId).orElse(null));
+                connection.setSourcePortId((String) conn.get("sourcePortId"));
+                connection.setTargetPortId((String) conn.get("targetPortId"));
+                connection.setLengthM(conn.containsKey("lengthM") ? ((Number) conn.get("lengthM")).doubleValue() : 10.0);
+                connection.setBandwidthMbps(1000.0);
                 
-                connectionService.createConnection(id, realSourceId, realTargetId, 
-                    sourcePortId, targetPortId, null, lengthM);
+                String connectionType = (String) conn.get("connectionType");
+                connection.setConnectionType("FACTOR_ELEMENT".equals(connectionType) 
+                    ? Connection.ConnectionType.FACTOR_ELEMENT 
+                    : Connection.ConnectionType.CABLE_DEVICE);
+                
+                if ("FACTOR_ELEMENT".equals(connectionType) && conn.containsKey("factorData")) {
+                    Map<String, Object> factorData = (Map<String, Object>) conn.get("factorData");
+                    if (factorData.containsKey("distance")) {
+                        connection.setDistance(((Number) factorData.get("distance")).doubleValue());
+                    }
+                    if (factorData.containsKey("factorType")) {
+                        connection.setFactorType((String) factorData.get("factorType"));
+                    }
+                }
+                
+                connectionRepository.save(connection);
                 log.info("Saved connection: {} -> {}", realSourceId, realTargetId);
             }
         }
         
-        log.info("Schema saved successfully. Nodes saved: {}, Connections saved: {}", 
-            nodeIdMap.size(), connections != null ? connections.size() : 0);
+        log.info("Schema saved. Nodes: {}, Connections: {}", nodeIdMap.size(), 
+            connections != null ? connections.size() : 0);
         
         return ResponseEntity.ok(nodeIdMap);
     }
-    
+
     @PostMapping("/{id}/last-opened")
     public ResponseEntity<Void> updateLastOpened(@PathVariable String id) {
         schemaService.updateLastOpened(id);

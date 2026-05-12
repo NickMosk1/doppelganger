@@ -88,3 +88,13 @@ export const getDeviceIcon = (type: string): string => {
   };
   return icons[type] || "🔧";
 };
+
+export const getFactorIcon = (factorType: string): string => {
+  switch (factorType) {
+    case "TEMPERATURE": return "🌡️";
+    case "EMI": return "⚡";
+    case "VIBRATION": return "📳";
+    case "DUST": return "🏭";
+    default: return "📊";
+  }
+};

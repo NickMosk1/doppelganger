@@ -1,5 +1,5 @@
 import { makeAutoObservable } from "mobx";
-import { EditorEdge, EditorNode, EditorNodes, NodePosition, NodeStatus, Port } from "../shared";
+import { ConnectionType, EditorEdge, EditorNode, EditorNodes, NodePosition, NodeStatus, Port } from "../shared";
 import { Nullable } from "../utils";
 
 class EditorStore {
@@ -345,18 +345,45 @@ class EditorStore {
 
   // Добавление связи (только локально, без API)
   addEdge(edge: EditorEdge): boolean {
-    // Проверяем возможность создания
-    if (!this.canCreateEdge(edge.sourceNodeId, edge.source, edge.targetNodeId, edge.target)) {
+    // Проверяем, не существует ли уже такой связи
+    const existingEdge = this._edges.find(
+      e => (e.sourceNodeId === edge.sourceNodeId && e.targetNodeId === edge.targetNodeId) ||
+          (e.sourceNodeId === edge.targetNodeId && e.targetNodeId === edge.sourceNodeId)
+    );
+    
+    if (existingEdge) {
+      console.warn("⚠️ Edge already exists between these nodes");
       return false;
     }
     
-    // Добавляем связь
+    // Для CABLE_DEVICE проверяем занятость портов
+    if (edge.connectionType === ConnectionType.CABLE_DEVICE) {
+      const sourcePortOccupied = this.isPortConnected(edge.sourceNodeId, edge.source);
+      const targetPortOccupied = this.isPortConnected(edge.targetNodeId, edge.target);
+      
+      if (sourcePortOccupied || targetPortOccupied) {
+        console.warn("⚠️ Port already connected! Source:", sourcePortOccupied, "Target:", targetPortOccupied);
+        return false;
+      }
+    }
+    
+    // Для FACTOR_ELEMENT не проверяем занятость портов (у факторов нет портов)
+    // И разрешаем множественные связи с одним фактором
+    if (edge.connectionType === ConnectionType.FACTOR_ELEMENT) {
+      // Проверяем только на дублирование
+      const existing = this._edges.some(
+        e => e.connectionType === ConnectionType.FACTOR_ELEMENT &&
+            e.sourceNodeId === edge.sourceNodeId &&
+            e.targetNodeId === edge.targetNodeId
+      );
+      if (existing) {
+        console.warn("⚠️ Factor already connected to this element");
+        return false;
+      }
+    }
+    
     this._edges.push(edge);
-    
-    // Обновляем состояние портов
-    this.updatePortConnection(edge.sourceNodeId, edge.source, true);
-    this.updatePortConnection(edge.targetNodeId, edge.target, true);
-    
+    console.log("✅ Edge added successfully");
     return true;
   }
 
@@ -473,6 +500,20 @@ class EditorStore {
       if (port) {
         port.isConnected = isConnected;
       }
+    }
+  }
+
+  updateFactorValue(nodeId: string, value: number) {
+    const node = this._nodes.find(n => n.id === nodeId);
+    if (node && node.type === EditorNodes.FACTOR) {
+      node.factorValue = value;
+    }
+  }
+
+  updateFactorRadius(nodeId: string, radius: number) {
+    const node = this._nodes.find(n => n.id === nodeId);
+    if (node && node.type === EditorNodes.FACTOR) {
+      node.factorRadius = radius;
     }
   }
 }

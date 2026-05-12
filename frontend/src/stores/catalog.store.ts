@@ -1,10 +1,20 @@
 import { makeAutoObservable } from "mobx";
-import { CatalogDevice, CatalogCable, CatalogSubSchema, DeviceCategories, CableTypes } from "../shared/types/catalog";
+import { 
+  CatalogDevice, 
+  CatalogCable, 
+  CatalogSubSchema, 
+  CatalogFactor,
+  DeviceCategories, 
+  CableTypes,
+  FactorTypes 
+} from "../shared/types/catalog";
 
 class CatalogStore {
+  
   private _devices: CatalogDevice[] = [];
   private _cables: CatalogCable[] = [];
   private _publicSchemas: CatalogSubSchema[] = [];
+  private _factors: CatalogFactor[] = [];  // Добавляем факторы
   private _searchQuery: string = "";
   private _isLoading: boolean = false;
 
@@ -36,12 +46,35 @@ class CatalogStore {
     );
   }
 
+  get factors() {
+    if (!this._searchQuery) return this._factors;
+    return this._factors.filter(f => 
+      f.name.toLowerCase().includes(this._searchQuery.toLowerCase())
+    );
+  }
+
   get searchQuery() {
     return this._searchQuery;
   }
 
   get isLoading() {
     return this._isLoading;
+  }
+
+  // Группировка факторов по типам
+  get groupedFactors() {
+    const groups: Record<FactorTypes, CatalogFactor[]> = {
+      [FactorTypes.TEMPERATURE]: [],
+      [FactorTypes.EMI]: [],
+      [FactorTypes.VIBRATION]: [],
+      [FactorTypes.DUST]: [],
+    };
+
+    this.factors.forEach(factor => {
+      groups[factor.factorType]?.push(factor);
+    });
+
+    return groups;
   }
 
   get groupedDevices() {
@@ -92,6 +125,10 @@ class CatalogStore {
     this._publicSchemas = schemas;
   }
 
+  setFactors(factors: CatalogFactor[]) {
+    this._factors = factors;
+  }
+
   setSearchQuery(query: string) {
     this._searchQuery = query;
   }
@@ -100,7 +137,7 @@ class CatalogStore {
     this._isLoading = loading;
   }
 
-  // ============ ACTIONS (только синхронные) ============
+  // ============ ACTIONS (синхронные) ============
   
   addDeviceSync(device: CatalogDevice) {
     this._devices.push(device);
@@ -108,6 +145,10 @@ class CatalogStore {
 
   addCableSync(cable: CatalogCable) {
     this._cables.push(cable);
+  }
+
+  addFactorSync(factor: CatalogFactor) {
+    this._factors.push(factor);
   }
 
   updateDeviceSync(id: string, data: Partial<CatalogDevice>) {
@@ -124,6 +165,13 @@ class CatalogStore {
     }
   }
 
+  updateFactorSync(id: string, data: Partial<CatalogFactor>) {
+    const index = this._factors.findIndex(f => f.id === id);
+    if (index !== -1) {
+      this._factors[index] = { ...this._factors[index], ...data };
+    }
+  }
+
   removeDeviceSync(id: string) {
     this._devices = this._devices.filter(d => d.id !== id);
   }
@@ -132,10 +180,15 @@ class CatalogStore {
     this._cables = this._cables.filter(c => c.id !== id);
   }
 
+  removeFactorSync(id: string) {
+    this._factors = this._factors.filter(f => f.id !== id);
+  }
+
   clear() {
     this._devices = [];
     this._cables = [];
     this._publicSchemas = [];
+    this._factors = [];
     this._searchQuery = "";
   }
 }

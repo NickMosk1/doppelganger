@@ -80,3 +80,23 @@ export const cableTypeLabels: Record<CableTypes, string> = {
   [CableTypes.SHIELDED]: "Экранированные",
   [CableTypes.INDUSTRIAL]: "Промышленные",
 };
+
+export enum FactorTypes {
+  TEMPERATURE = "TEMPERATURE",
+  EMI = "EMI",
+  VIBRATION = "VIBRATION",
+  DUST = "DUST",
+};
+
+export interface CatalogFactor {
+  id: string;
+  name: string;
+  factorType: FactorTypes;
+  factorValue: number;
+  factorUnit: string;
+  factorRadius: number;
+  icon: string;
+  description?: string;
+  authorId?: string;
+  isCustom?: boolean;
+};

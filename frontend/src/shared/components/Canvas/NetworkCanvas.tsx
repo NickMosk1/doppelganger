@@ -24,7 +24,7 @@ import "reactflow/dist/style.css";
 import { observer } from "mobx-react-lite";
 import { reaction } from "mobx";
 import { useStores } from "../../../hooks/useStores";
-import { DeviceNode, SubSchemaNode, CableNode } from "./nodes";
+import { DeviceNode, SubSchemaNode, CableNode, FactorNode } from "./nodes";
 import { CanvasContainer, CanvasWrapper } from "./NetworkCanvas.styles";
 import AxesWithGrid from "./AxesWithGrid";
 import { ConnectionType, EditorEdge, EditorNode, EditorNodes } from "../../types";
@@ -33,6 +33,7 @@ const nodeTypes: NodeTypes = {
   device: DeviceNode,
   subschema: SubSchemaNode,
   cable: CableNode,
+  factor: FactorNode,
 };
 
 interface NetworkCanvasProps {
@@ -61,6 +62,24 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
   const convertToReactFlowNodes = useCallback((storeNodes: EditorNode[]): Node[] => {
     return storeNodes.map(node => {
       const isSelected = editorStore.selectedNodeId === node.id;
+      
+      if (node.type === EditorNodes.FACTOR) {
+        return {
+          id: node.id,
+          type: "factor",
+          position: node.position,
+          selected: isSelected,
+          data: {
+            id: node.id,
+            factorType: node.factorType,
+            name: node.name,
+            customName: node.customName,
+            value: node.factorValue,
+            unit: node.factorUnit,
+            radius: node.factorRadius,
+          },
+        };
+      }
       
       if (node.type === EditorNodes.CABLE) {
         return {
@@ -265,11 +284,23 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
   }, [editorStore, refreshCanvas]);
 
   const onConnect = useCallback((connection: Connection) => {
+    console.log("=== CONNECTION DETECTED ===", connection);
+    
     if (!connection.source || !connection.target) return;
     
     const sourceNode = editorStore.nodes.find(n => n.id === connection.source);
     const targetNode = editorStore.nodes.find(n => n.id === connection.target);
-    if (!sourceNode || !targetNode) return;
+    
+    if (!sourceNode || !targetNode) {
+      console.warn("Source or target node not found");
+      return;
+    }
+    
+    // ❌ Запрещаем связь устройство-устройство
+    if (sourceNode.type === EditorNodes.DEVICE && targetNode.type === EditorNodes.DEVICE) {
+      console.warn("❌ Cannot connect device to device directly");
+      return;
+    }
     
     const edgeId = `${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
     let connectionType: ConnectionType = ConnectionType.CABLE_DEVICE;
@@ -289,9 +320,18 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
     const isSourceDevice = sourceNode.type === EditorNodes.DEVICE;
     const isTargetDevice = targetNode.type === EditorNodes.DEVICE;
     
+    // Если один из узлов - ФАКТОР, то это FACTOR_ELEMENT связь
     if (isSourceFactor || isTargetFactor) {
       connectionType = ConnectionType.FACTOR_ELEMENT;
       const factorNode = isSourceFactor ? sourceNode : targetNode;
+      const elementNode = isSourceFactor ? targetNode : sourceNode;
+      
+      // Проверяем, что элемент - это устройство или кабель (не фактор)
+      if (elementNode.type !== EditorNodes.DEVICE && elementNode.type !== EditorNodes.CABLE) {
+        console.warn("❌ Factor can only connect to DEVICE or CABLE");
+        return;
+      }
+      
       edgeData = {
         ...edgeData,
         connectionType,
@@ -303,11 +343,23 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
         },
         lengthM: undefined,
       };
-    } else if ((isSourceDevice && isTargetCable) || (isSourceCable && isTargetDevice) || (isSourceDevice && isTargetDevice)) {
+      
+      console.log(`✅ Creating FACTOR_ELEMENT connection: ${factorNode.name} → ${elementNode.name}`);
+    } 
+    // Если кабель с устройством - CABLE_DEVICE связь
+    else if ((isSourceDevice && isTargetCable) || (isSourceCable && isTargetDevice)) {
       connectionType = ConnectionType.CABLE_DEVICE;
-      edgeData = { ...edgeData, connectionType, lengthM: 10, bandwidthMbps: 1000 };
-    } else {
-      edgeData = { ...edgeData, connectionType: ConnectionType.CABLE_DEVICE, lengthM: 10 };
+      edgeData = {
+        ...edgeData,
+        connectionType,
+        lengthM: 10,
+        bandwidthMbps: 1000,
+      };
+      console.log(`✅ Creating CABLE_DEVICE connection: ${sourceNode.name} ↔ ${targetNode.name}`);
+    }
+    else {
+      console.warn(`❌ Unsupported connection type: ${sourceNode.type} → ${targetNode.type}`);
+      return;
     }
     
     const newEdge = edgeData as EditorEdge;
@@ -321,7 +373,12 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
         return { stroke: '#e54848', strokeWidth: 2 };
       };
       
-      const getEdgeLabel = () => connectionType === ConnectionType.FACTOR_ELEMENT ? '10м' : '';
+      const getEdgeLabel = () => {
+        if (connectionType === ConnectionType.FACTOR_ELEMENT) {
+          return '10м';
+        }
+        return '';
+      };
       
       const reactFlowEdge: Edge = {
         id: edgeId,
@@ -336,9 +393,10 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
       
       setEdges((eds) => addEdge(reactFlowEdge, eds));
       
+      // Обновляем состояние портов (только для CABLE_DEVICE)
       if (connectionType === ConnectionType.CABLE_DEVICE) {
-        editorStore.setPortConnection(connection.source, connection.sourceHandle!, true);
-        editorStore.setPortConnection(connection.target, connection.targetHandle!, true);
+        editorStore.updatePortConnection(connection.source, connection.sourceHandle!, true);
+        editorStore.updatePortConnection(connection.target, connection.targetHandle!, true);
       }
     }
   }, [editorStore, setEdges]);

@@ -1,3 +1,4 @@
+// src/shared/components/LeftPanel/LeftPanel.tsx
 import { useState, useEffect, useCallback, useRef } from "react";
 import { observer } from "mobx-react-lite";
 import {
@@ -9,16 +10,16 @@ import {
 } from "./LeftPanel.styles";
 import { CollapsibleSection } from "./components/CollapsibleSection/CollapsibleSection";
 import { AddItemButton, CategorySection, ItemCard } from "./components";
-import { cableTypeLabels, CableTypes, EditorNodes, NodeStatus, PortType } from "../../../types";
+import { cableTypeLabels, CableTypes, EditorNodes, FactorTypes, NodeStatus, PortType } from "../../../types";
 import { generateDefaultPorts, getDeviceIcon } from "../../Canvas/utils";
-import { AddCableModal, AddDeviceModal } from "../../../ui";
+import { AddCableModal, AddDeviceModal, AddFactorModal } from "../../../ui";
 import { useResizePanel } from "./hooks/useResizePanel";
 import CatalogService from "../../../../services/catalog.service";
 import { useStores } from "../../../../hooks";
 
 const catalogService = new CatalogService();
 
-type TabType = "catalog" | "explorer";
+type TabType = "catalog" | "factors" | "explorer";
 
 const deviceTypeConfig = [
   { type: "ROUTER", icon: "🌐", label: "Маршрутизаторы" },
@@ -27,6 +28,13 @@ const deviceTypeConfig = [
   { type: "SERVER", icon: "🖥️", label: "Серверы" },
   { type: "FIREWALL", icon: "🛡️", label: "Фаерволы" },
   { type: "WORKSTATION", icon: "💻", label: "Рабочие станции" },
+];
+
+const factorTypeConfig = [
+  { type: "TEMPERATURE", icon: "🌡️", label: "Температурные" },
+  { type: "EMI", icon: "⚡", label: "Электромагнитные" },
+  { type: "VIBRATION", icon: "📳", label: "Вибрационные" },
+  { type: "DUST", icon: "🏭", label: "Запыленность" },
 ];
 
 const getRandomPosition = () => {
@@ -41,12 +49,14 @@ const getRandomPosition = () => {
 };
 
 const LeftPanel: React.FC = observer(() => {
-  const { catalogStore, editorStore, draftStore } = useStores();
+  const { catalogStore, editorStore } = useStores();
   const { width, isResizing, startResize } = useResizePanel(280, 200, 450);
   const [activeTab, setActiveTab] = useState<TabType>("catalog");
   const [showAddDeviceModal, setShowAddDeviceModal] = useState(false);
   const [showAddCableModal, setShowAddCableModal] = useState(false);
+  const [showAddFactorModal, setShowAddFactorModal] = useState(false);
   const [selectedDeviceType, setSelectedDeviceType] = useState<string>("ROUTER");
+  const [selectedFactorType, setSelectedFactorType] = useState<string>("TEMPERATURE");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -57,15 +67,17 @@ const LeftPanel: React.FC = observer(() => {
       setIsLoading(true);
       setError(null);
       try {
-        const [devices, cables, publicSchemas] = await Promise.all([
+        const [devices, cables, publicSchemas, factors] = await Promise.all([
           catalogService.getDevices(),
           catalogService.getCables(),
           catalogService.getPublicSchemas(),
+          catalogService.getFactors(),  // Добавляем загрузку факторов
         ]);
         
         catalogStore.setDevices(devices);
         catalogStore.setCables(cables);
         catalogStore.setPublicSchemas(publicSchemas);
+        catalogStore.setFactors(factors);  // Сохраняем факторы в стор
       } catch (err) {
         console.error("Failed to load catalog:", err);
         setError("Не удалось загрузить каталог");
@@ -84,11 +96,6 @@ const LeftPanel: React.FC = observer(() => {
         type: selectedDeviceType,
       });
       catalogStore.addDeviceSync(newDevice);
-      
-      // Не нужно явно обновлять черновик здесь,
-      // потому что добавление узла в editorStore вызовет reaction в DraftStore
-      // который автоматически отметит hasUnsavedChanges = true
-      
     } catch (error) {
       console.error("Failed to add device:", error);
     }
@@ -98,14 +105,33 @@ const LeftPanel: React.FC = observer(() => {
     try {
       const newCable = await catalogService.addCable(cable);
       catalogStore.addCableSync(newCable);
-      
-      // Аналогично - черновик обновится автоматически через реакции
     } catch (error) {
       console.error("Failed to add cable:", error);
     }
   };
 
-  const handleItemClick = (item: any, sourceType: "device" | "cable" | "subschema") => {
+  const handleAddFactor = async (factor: any) => {
+    try {
+      // Получаем текущий schemaId из editorStore
+      const schemaId = editorStore.currentSchemaId;
+      if (!schemaId || schemaId.startsWith("draft-")) {
+        console.error("Cannot add factor: schema not saved yet");
+        alert("Сначала сохраните схему");
+        return;
+      }
+      
+      const newFactor = await catalogService.addFactor({
+        ...factor,
+        schemaId,
+      });
+      catalogStore.addFactorSync(newFactor);
+    } catch (error) {
+      console.error("Failed to add factor:", error);
+      alert("Ошибка при добавлении фактора");
+    }
+  };
+
+  const handleItemClick = (item: any, sourceType: "device" | "cable" | "factor" | "subschema") => {
     if (sourceType === "cable") {
       const position = getRandomPosition();
       
@@ -124,6 +150,28 @@ const LeftPanel: React.FC = observer(() => {
           { id: "left", name: "Left", type: PortType.ETHERNET, isConnected: false },
           { id: "right", name: "Right", type: PortType.ETHERNET, isConnected: false },
         ],
+      };
+      
+      editorStore.addNode(newNode);
+      return;
+    }
+
+    if (sourceType === "factor") {
+      const position = getRandomPosition();
+      
+      const newNode = {
+        id: `factor-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+        type: EditorNodes.FACTOR,
+        name: item.name,
+        customName: item.name,
+        position: position,
+        icon: item.icon || getFactorIcon(item.factorType),
+        factorType: item.factorType,
+        factorValue: item.factorValue,
+        factorUnit: item.factorUnit,
+        factorRadius: item.factorRadius,
+        isEnabled: true,
+        status: NodeStatus.OPERATIONAL,
       };
       
       editorStore.addNode(newNode);
@@ -159,11 +207,39 @@ const LeftPanel: React.FC = observer(() => {
     editorStore.addNode(newNode);
   };
 
+  const getFactorIcon = (type: string): string => {
+    switch (type) {
+      case "TEMPERATURE": return "🌡️";
+      case "EMI": return "⚡";
+      case "VIBRATION": return "📳";
+      case "DUST": return "🏭";
+      default: return "📊";
+    }
+  };
+
+  const getFactorUnit = (type: string): string => {
+    switch (type) {
+      case "TEMPERATURE": return "°C";
+      case "EMI": return "dBm";
+      case "VIBRATION": return "Hz";
+      case "DUST": return "mg/m³";
+      default: return "";
+    }
+  };
+
   const filterDevices = (devices: any[]) => {
     if (!searchQuery) return devices;
     return devices.filter(d => 
       d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       d.manufacturer?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  };
+
+  const filterFactors = (factors: any[]) => {
+    if (!searchQuery) return factors;
+    return factors.filter(f => 
+      f.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      f.customName?.toLowerCase().includes(searchQuery.toLowerCase())
     );
   };
 
@@ -210,14 +286,18 @@ const LeftPanel: React.FC = observer(() => {
 
       <TabHeader>
         <PanelTab active={activeTab === "catalog"} onClick={() => setActiveTab("catalog")}>
-          Каталог
+          📚 Каталог
+        </PanelTab>
+        <PanelTab active={activeTab === "factors"} onClick={() => setActiveTab("factors")}>
+          🌡️ Факторы
         </PanelTab>
         <PanelTab active={activeTab === "explorer"} onClick={() => setActiveTab("explorer")}>
-          Проводник
+          📁 Проводник
         </PanelTab>
       </TabHeader>
 
       <TabContent>
+        {/* Вкладка КАТАЛОГ */}
         {activeTab === "catalog" && (
           <>
             <CollapsibleSection title="УСТРОЙСТВА" icon="🖥️" defaultExpanded={false}>
@@ -326,28 +406,80 @@ const LeftPanel: React.FC = observer(() => {
                 />
               </div>
             </CollapsibleSection>
-
-            {/* <CollapsibleSection title="ПУБЛИЧНЫЕ СХЕМЫ" icon="🏪" defaultExpanded={false}>
-              <CategorySection title={label} icon={icon}>
-                {catalogStore.publicSchemas.map((schema) => (
-                  <ItemCard
-                    key={schema.id}
-                    id={schema.id}
-                    name={schema.name}
-                    icon="📁"
-                    description={schema.description}
-                    badge={schema.ownerName}
-                    onClick={() => handleItemClick(schema, "subschema")}
-                  />
-                ))}
-              </CategorySection>
-            </CollapsibleSection> */}
           </>
         )}
 
+        {/* Вкладка ФАКТОРЫ */}
+        {activeTab === "factors" && (
+          <>
+            {factorTypeConfig.map(({ type, icon, label }) => {
+              const factors = filterFactors(catalogStore.groupedFactors[type as FactorTypes] || []);
+              if (factors.length === 0) {
+                return (
+                  <CollapsibleSection
+                    key={type}
+                    title={label}
+                    icon={icon}
+                    nested={false}
+                    defaultExpanded={false}
+                  >
+                    <div style={{ padding: "16px", textAlign: "center", color: "#999", fontSize: "12px" }}>
+                      Нет факторов типа {label.toLowerCase()}
+                    </div>
+                  </CollapsibleSection>
+                );
+              }
+              return (
+                <CollapsibleSection
+                  key={type}
+                  title={label}
+                  icon={icon}
+                  nested={false}
+                  defaultExpanded={false}
+                >
+                  <CategorySection title={label} icon={icon}>
+                    {factors.map((factor) => (
+                      <ItemCard
+                        key={factor.id}
+                        id={factor.id}
+                        name={factor.name}
+                        icon={factor.icon || icon}
+                        badge={factor.factorType}
+                        isCustom={factor.isCustom}
+                        isSelected={editorStore.selectedNodeId === factor.id}
+                        tooltipInfo={{
+                          title: factor.name,
+                          rows: [
+                            { label: 'Тип', value: factor.factorType },
+                            { label: 'Интенсивность', value: `${factor.factorValue} ${getFactorUnit(factor.factorType)}` },
+                            { label: 'Радиус влияния', value: `${factor.factorRadius || 10} м` },
+                          ],
+                        }}
+                        onClick={() => handleItemClick(factor, "factor")}
+                      />
+                    ))}
+                  </CategorySection>
+                </CollapsibleSection>
+              );
+            })}
+            <div style={{ padding: '8px 0 0 0' }}>
+              <AddItemButton
+                onClick={() => {
+                  setSelectedFactorType("TEMPERATURE");
+                  setShowAddFactorModal(true);
+                }}
+                label="+ Добавить фактор"
+                size="normal"
+                fullWidth
+              />
+            </div>
+          </>
+        )}
+
+        {/* Вкладка ПРОВОДНИК */}
         {activeTab === "explorer" && (
           <>
-            <CollapsibleSection title="УСТРОЙСТВА" icon="🖥️" defaultExpanded={true}>
+            <CollapsibleSection title="УСТРОЙСТВА" icon="🖥️" defaultExpanded={false}>
               <CategorySection title="УСТРОЙСТВА" icon="🖥️">
                 {editorStore.nodes
                   .filter(node => node.type === EditorNodes.DEVICE)
@@ -371,7 +503,7 @@ const LeftPanel: React.FC = observer(() => {
               </CategorySection>
             </CollapsibleSection>
 
-            <CollapsibleSection title="КАБЕЛИ" icon="🔌" defaultExpanded={true}>
+            <CollapsibleSection title="КАБЕЛИ" icon="🔌" defaultExpanded={false}>
               <CategorySection title="КАБЕЛИ" icon="🔌">
                 {editorStore.nodes
                   .filter(node => node.type === EditorNodes.CABLE)
@@ -395,7 +527,31 @@ const LeftPanel: React.FC = observer(() => {
               </CategorySection>
             </CollapsibleSection>
 
-            <CollapsibleSection title="СВЯЗИ" icon="🔗" defaultExpanded={true}>
+            <CollapsibleSection title="ФАКТОРЫ" icon="🌡️" defaultExpanded={false}>
+              <CategorySection title="ФАКТОРЫ" icon="🌡️">
+                {editorStore.nodes
+                  .filter(node => node.type === EditorNodes.FACTOR)
+                  .map((factor) => (
+                    <ItemCard
+                      key={factor.id}
+                      id={factor.id}
+                      name={factor.customName || factor.name || "Фактор"}
+                      icon={factor.icon || getFactorIcon(factor.factorType || "TEMPERATURE")}
+                      description={`Тип: ${factor.factorType || "Неизвестно"}, Значение: ${factor.factorValue || 0}`}
+                      badge="Фактор"
+                      isSelected={editorStore.selectedNodeId === factor.id}
+                      onClick={() => editorStore.selectNode(factor.id)}
+                    />
+                  ))}
+                {editorStore.nodes.filter(n => n.type === EditorNodes.FACTOR).length === 0 && (
+                  <div style={{ padding: "16px", textAlign: "center", color: "#999", fontSize: "12px" }}>
+                    Нет факторов
+                  </div>
+                )}
+              </CategorySection>
+            </CollapsibleSection>
+
+            <CollapsibleSection title="СВЯЗИ" icon="🔗" defaultExpanded={false}>
               <CategorySection title="СВЯЗИ" icon="🔗">
                 {editorStore.edges.map((edge) => {
                   const sourceNode = editorStore.getNodeById(edge.sourceNodeId);
@@ -420,29 +576,6 @@ const LeftPanel: React.FC = observer(() => {
                 )}
               </CategorySection>
             </CollapsibleSection>
-
-            {/* <CollapsibleSection title="ВЛОЖЕННЫЕ СХЕМЫ" icon="📁" defaultExpanded={true}>
-              <CategorySection>
-                {editorStore.nodes
-                  .filter(node => node.type === EditorNodes.SUBSCHEMA)
-                  .map((node) => (
-                    <ItemCard
-                      key={node.id}
-                      id={node.id}
-                      name={node.customName || node.name}
-                      icon="📁"
-                      description="Вложенная схема"
-                      badge="Подсхема"
-                      onClick={() => editorStore.selectNode(node.id)}
-                    />
-                  ))}
-                {editorStore.nodes.filter(n => n.type === EditorNodes.SUBSCHEMA).length === 0 && (
-                  <div style={{ padding: "16px", textAlign: "center", color: "#999", fontSize: "12px" }}>
-                    Нет вложенных схем
-                  </div>
-                )}
-              </CategorySection>
-            </CollapsibleSection> */}
           </>
         )}
       </TabContent>
@@ -458,6 +591,13 @@ const LeftPanel: React.FC = observer(() => {
         isOpen={showAddCableModal}
         onClose={() => setShowAddCableModal(false)}
         onAdd={handleAddCable}
+      />
+
+      <AddFactorModal
+        isOpen={showAddFactorModal}
+        onClose={() => setShowAddFactorModal(false)}
+        onAdd={handleAddFactor}
+        defaultType={selectedFactorType}
       />
     </LeftPanelContainer>
   );

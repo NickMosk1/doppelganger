@@ -194,4 +194,13 @@ public class SchemaNodeService {
         
         return saved;
     }
+
+    public void deleteAllBySchemaId(String schemaId) {
+        List<SchemaNode> nodes = schemaNodeRepository.findBySchemaId(schemaId);
+        schemaNodeRepository.deleteAll(nodes);
+    }
+
+    public SchemaNode save(SchemaNode node) {
+        return schemaNodeRepository.save(node);
+    }
 }

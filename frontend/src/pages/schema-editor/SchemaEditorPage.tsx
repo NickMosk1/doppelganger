@@ -12,11 +12,12 @@ import {
   DraftIndicator,
   SavedIndicator,
 } from "./SchemaEditorPage.styles";
-import { Button, EditorNodes, LeftPanel, NetworkCanvas, NodeStatus, RightPanel } from "../../shared";
+import { Button, ConnectionType, EditorNodes, LeftPanel, NetworkCanvas, NodeStatus, PortType, RightPanel } from "../../shared";
 import EditorService from "../../services/editor.service";
 import SimulationService from "../../services/simulation.service";
 import CatalogService from "../../services/catalog.service";
 import { EditSchemaModal } from "../../shared/ui";
+import { generateDefaultPorts, getDeviceIcon, getFactorIcon } from "../../shared/components/Canvas/utils";
 
 const editorService = new EditorService();
 const simulationService = new SimulationService();
@@ -80,24 +81,68 @@ const SchemaEditorPage: React.FC = observer(() => {
         try {
           const fullSchema = await editorService.getSchemaFull(id);
           
-          const nodes = fullSchema.nodes.map(node => ({
-            id: node.id,
-            type: node.nodeType === "DEVICE" ? EditorNodes.DEVICE :
-                  node.nodeType === "CABLE" ? EditorNodes.CABLE :
-                  node.nodeType === "FACTOR" ? EditorNodes.FACTOR : EditorNodes.SUBSCHEMA,
-            deviceId: node.device?.id,
-            factorType: node.factorType,
-            factorValue: node.factorValue,
-            factorUnit: node.factorUnit,
-            name: node.device?.name || node.customName || "Элемент",
-            customName: node.customName,
-            position: { x: node.positionX, y: node.positionY },
-            isEnabled: true,
-            status: NodeStatus.OPERATIONAL,
-            lengthM: node.lengthM,
-            cableType: node.cableType,
-            bandwidthMbps: node.bandwidthMbps,
-          }));
+          const nodes = fullSchema.nodes.map(node => {
+            const baseNode = {
+              id: node.id,
+              type: node.nodeType === "DEVICE" ? EditorNodes.DEVICE :
+                    node.nodeType === "CABLE" ? EditorNodes.CABLE :
+                    node.nodeType === "FACTOR" ? EditorNodes.FACTOR : EditorNodes.SUBSCHEMA,
+              name: node.device?.name || node.customName || "Элемент",
+              customName: node.customName,
+              position: { x: node.positionX, y: node.positionY },
+              isEnabled: true,
+              status: NodeStatus.OPERATIONAL,
+            };
+            
+            // Для DEVICE
+            if (node.nodeType === "DEVICE" && node.device) {
+              return {
+                ...baseNode,
+                deviceId: node.device.id,
+                manufacturer: node.device.manufacturer,
+                baseLatencyMs: node.device.baseLatencyMs || 0,
+                maxThroughputMbps: node.device.maxThroughputMbps || 0,
+                device: node.device, // сохраняем оригинальный объект
+                ports: generateDefaultPorts(node.device.type),
+                icon: getDeviceIcon(node.device.type),
+              };
+            }
+            
+            // Для CABLE
+            if (node.nodeType === "CABLE") {
+              return {
+                ...baseNode,
+                lengthM: node.cableLengthM || 10,
+                cableType: node.cableType,
+                bandwidthMbps: node.bandwidthMbps || 1000,
+                icon: "🔌",
+                ports: [
+                  { id: "left", name: "Left", type: PortType.ETHERNET, isConnected: false },
+                  { id: "right", name: "Right", type: PortType.ETHERNET, isConnected: false },
+                ],
+              };
+            }
+            
+            // Для FACTOR
+            if (node.nodeType === "FACTOR" && node.factor) {
+              return {
+                ...baseNode,
+                factorType: node.factor.factorType,
+                factorValue: node.factor.factorValue,
+                factorUnit: node.factor.factorUnit,
+                factorRadius: node.factor.factorRadius,
+                factor: node.factor,
+                icon: getFactorIcon(node.factor.factorType),
+              };
+            }
+            
+            // Для SUBSCHEMA
+            return {
+              ...baseNode,
+              schemaId: node.id,
+              icon: "📁",
+            };
+          });
           
           const edges = fullSchema.connections?.map(conn => ({
             id: conn.id,
@@ -105,8 +150,8 @@ const SchemaEditorPage: React.FC = observer(() => {
             targetNodeId: conn.targetNode.id,
             source: conn.sourcePortId || "left",
             target: conn.targetPortId || "right",
-            connectionType: conn.connectionType,
-            lengthM: conn.lengthM,
+            connectionType: conn.connectionType || ConnectionType.CABLE_DEVICE,
+            lengthM: conn.lengthM || 10,
             factorData: conn.factorData,
             isActive: true,
           })) || [];
@@ -234,20 +279,32 @@ const SchemaEditorPage: React.FC = observer(() => {
       const schemaData = {
         name: schemaName,
         description: schemaDescription,
-        nodes: editorStore.nodes.map(node => ({
-          id: node.id,
-          type: node.type,
-          deviceId: node.deviceId,
-          name: node.name,
-          customName: node.customName,
-          positionX: node.position.x,
-          positionY: node.position.y,
-          lengthM: node.lengthM,
-          cableType: node.cableType,
-          bandwidthMbps: node.bandwidthMbps,
-          factorType: node.factorType,
-          factorValue: node.factorValue,
-        })),
+        nodes: editorStore.nodes.map(node => {
+          console.log("📦 Node being saved:", {
+            id: node.id,
+            type: node.type,
+            name: node.name,
+            isFactor: node.type === "FACTOR",
+            factorType: node.factorType,
+          });
+          
+          return {
+            id: node.id,
+            type: node.type,
+            deviceId: node.deviceId,
+            name: node.name,
+            customName: node.customName,
+            positionX: node.position.x,
+            positionY: node.position.y,
+            lengthM: node.lengthM,
+            cableType: node.cableType,
+            bandwidthMbps: node.bandwidthMbps,
+            factorType: node.factorType,
+            factorValue: node.factorValue,
+            factorUnit: node.factorUnit,
+            factorRadius: node.factorRadius,
+          };
+        }),
         connections: editorStore.edges.map(edge => ({
           sourceNodeId: edge.sourceNodeId,
           targetNodeId: edge.targetNodeId,

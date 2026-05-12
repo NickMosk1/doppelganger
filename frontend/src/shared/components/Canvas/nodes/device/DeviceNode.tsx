@@ -12,6 +12,7 @@ const DeviceNodeContainer = styled.div<{ selected: boolean }>`
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: relative;
 
   &:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -113,6 +114,26 @@ const StatusIndicator = styled.div<{ status?: string }>`
   text-align: center;
 `;
 
+// Handle для подключения факторов (снизу)
+const FactorHandle = styled(Handle)`
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 12px;
+  background: #f59e0b;
+  border-radius: 50%;
+  border: 2px solid white;
+  cursor: crosshair;
+  z-index: 10;
+  
+  &:hover {
+    background: #e54848;
+    transform: translateX(-50%) scale(1.2);
+  }
+`;
+
 interface DeviceNodeProps {
   data: {
     id: string;
@@ -127,7 +148,6 @@ interface DeviceNodeProps {
 }
 
 const DeviceNode: React.FC<DeviceNodeProps> = observer(({ data, selected }) => {
-  // Разделяем порты на левые и правые
   const leftPorts = data.ports?.filter((_, i) => i % 2 === 0) || [];
   const rightPorts = data.ports?.filter((_, i) => i % 2 === 1) || [];
 
@@ -152,7 +172,6 @@ const DeviceNode: React.FC<DeviceNodeProps> = observer(({ data, selected }) => {
               <PortDot portType={port.type} isConnected={port.isConnected} />
               <PortName>{port.name}</PortName>
               {port.speed && <PortSpeed>{port.speed}M</PortSpeed>}
-              {/* Handle для соединения - левая сторона */}
               <Handle
                 type="source"
                 position={Position.Left}
@@ -185,7 +204,6 @@ const DeviceNode: React.FC<DeviceNodeProps> = observer(({ data, selected }) => {
               <PortDot portType={port.type} isConnected={port.isConnected} />
               <PortName>{port.name}</PortName>
               {port.speed && <PortSpeed>{port.speed}M</PortSpeed>}
-              {/* Handle для соединения - правая сторона */}
               <Handle
                 type="target"
                 position={Position.Right}
@@ -208,6 +226,13 @@ const DeviceNode: React.FC<DeviceNodeProps> = observer(({ data, selected }) => {
           ))}
         </PortsColumn>
       </PortsContainer>
+
+      {/* Handle для подключения факторов (снизу) */}
+      <FactorHandle
+        type="target"
+        position={Position.Bottom}
+        id="factor-connection"
+      />
 
       <StatusIndicator status={data.status}>
         {data.status === 'OPERATIONAL' && '🟢 Online'}

@@ -6,6 +6,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -18,7 +20,7 @@ public class SchemaFullDto {
     private String path;
     private List<NodeDto> nodes;
     private List<ConnectionDto> connections;
-    
+
     @Data
     @Builder
     @NoArgsConstructor
@@ -32,6 +34,7 @@ public class SchemaFullDto {
         private DeviceDto device;
         private Double cableLengthM;
         private String cableType;
+        private FactorDto factor;
         
         @Data
         @Builder
@@ -45,6 +48,17 @@ public class SchemaFullDto {
             private Double baseLatencyMs;
             private Integer maxThroughputMbps;
         }
+        
+        @Data
+        @Builder
+        @NoArgsConstructor
+        @AllArgsConstructor
+        public static class FactorDto {
+            private String factorType;
+            private Double factorValue;
+            private String factorUnit;
+            private Double factorRadius;
+        }
     }
     
     @Data
@@ -55,11 +69,36 @@ public class SchemaFullDto {
         private String id;
         private Double lengthM;
         private Double bandwidthMbps;
+        @JsonProperty("sourceNodeId")
+        private String sourceNodeId;
+        private String connectionType;  // 🔧 Добавить!
+        @JsonProperty("targetNodeId")
+        private String targetNodeId;
         private NodeRefDto sourceNode;
         private NodeRefDto targetNode;
         private CableDto cable;
         private String sourcePortId;
         private String targetPortId;
+        private FactorDataDto factorData;  // 🔧 Добавить!
+
+        @Data
+        @Builder
+        @NoArgsConstructor
+        @AllArgsConstructor
+        public static class FactorDataDto {
+            private String factorId;
+            private String factorType;
+            private Double distance;
+            private Double attenuation;
+        }
+
+        public String getSourceNodeId() {
+            return sourceNodeId;
+        }
+
+        public void setSourceNodeId(String sourceNodeId) {
+            this.sourceNodeId = sourceNodeId;
+        }
         
         @Data
         @Builder

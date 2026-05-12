@@ -14,8 +14,8 @@ import {
   Tab,
 } from "./RightPanel.styles";
 import { useResizePanel } from "./hooks/useResizePanel";
-import { DeviceView, CableView, EdgeView, SubSchemaView, EmptyView } from "./components/ViewMode";
-import { DeviceEdit, CableEdit, EdgeEdit, SubSchemaEdit } from "./components/EditMode";
+import { DeviceView, CableView, EdgeView, SubSchemaView, EmptyView, FactorView } from "./components/ViewMode";
+import { DeviceEdit, CableEdit, EdgeEdit, SubSchemaEdit, FactorEdit } from "./components/EditMode";
 import { FactorsTab, SimulationTab } from "./components";
 import { EditorNodes } from "../../../types";
 import { useStores } from "../../../../hooks";
@@ -148,15 +148,17 @@ const RightPanel: React.FC = observer(() => {
     if (mode === "view") {
       if (selectedNode?.type === EditorNodes.DEVICE) return <DeviceView node={selectedNode} />;
       if (selectedNode?.type === EditorNodes.CABLE) return <CableView node={selectedNode} editorStore={editorStore} />;
+      if (selectedNode?.type === EditorNodes.FACTOR) return <FactorView node={selectedNode} editorStore={editorStore} />;
       if (selectedNode?.type === EditorNodes.SUBSCHEMA) return <SubSchemaView node={selectedNode} />;
-      if (selectedEdge) return <EdgeView edge={selectedEdge} editorStore={editorStore} />;
+      if (selectedEdge) return <EdgeView edge={selectedEdge} editorStore={editorStore} />;  // EdgeView сам обрабатывает оба типа
     }
 
     if (mode === "edit") {
       if (selectedNode?.type === EditorNodes.DEVICE) return <DeviceEdit node={selectedNode} onDataChange={handleDataChange} initialData={pendingChanges} />;
       if (selectedNode?.type === EditorNodes.CABLE) return <CableEdit node={selectedNode} onDataChange={handleDataChange} initialData={pendingChanges} />;
+      if (selectedNode?.type === EditorNodes.FACTOR) return <FactorEdit node={selectedNode} onDataChange={handleDataChange} initialData={pendingChanges} />;
       if (selectedNode?.type === EditorNodes.SUBSCHEMA) return <SubSchemaEdit node={selectedNode} onDataChange={handleDataChange} initialData={pendingChanges} />;
-      if (selectedEdge) return <EdgeEdit edge={selectedEdge} onDataChange={handleDataChange} initialData={pendingChanges} />;
+      if (selectedEdge) return <EdgeEdit edge={selectedEdge} onDataChange={handleDataChange} initialData={pendingChanges} />;  // EdgeEdit сам обрабатывает оба типа
     }
 
     return null;

@@ -1,3 +1,5 @@
+// src/shared/types/schema.ts
+
 import { CableTypes, ConnectionType, DeviceTypes, EditorNodes } from "./index";
 
 export interface SchemaNodeDevice {
@@ -23,25 +25,38 @@ export interface SchemaConnectionCable {
   attenuationDbPerKm?: number;
 }
 
-// src/services/editor.service.ts
-
 export interface SchemaNode {
   id: string;
   customName: string;
   nodeType: string;
   positionX: number;
   positionY: number;
+  
+  // Для DEVICE (расширенный объект device)
   device?: {
     id: string;
     name: string;
     type: string;
     manufacturer: string;
+    baseLatencyMs?: number;
+    maxThroughputMbps?: number;
   };
-  // Добавляем поля для кабелей
-  lengthM?: number;
+  
+  // Для CABLE
+  cableLengthM?: number;
   cableType?: string;
   bandwidthMbps?: number;
-  // Добавляем поля для факторов
+  
+  // Для FACTOR (новый объект factor)
+  factor?: {
+    factorType: string;
+    factorValue: number;
+    factorUnit: string;
+    factorRadius: number;
+  };
+  
+  // Устаревшие поля (для обратной совместимости, можно удалить позже)
+  lengthM?: number;
   factorType?: string;
   factorValue?: number;
   factorUnit?: string;
@@ -54,12 +69,9 @@ export interface SchemaConnection {
   sourceNode: { id: string; customName: string };
   targetNode: { id: string; customName: string };
   cable?: { id: string; name: string; type: string };
-  // Добавляем поля для портов
   sourcePortId?: string;
   targetPortId?: string;
-  // Добавляем тип связи
   connectionType: ConnectionType;
-  // Добавляем данные для FACTOR_ELEMENT
   factorData?: {
     factorId: string;
     factorType: string;
