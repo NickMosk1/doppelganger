@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import ReactFlow, {
   Controls,
   MiniMap,
@@ -58,6 +58,22 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
+  // ============ ОБРАБОТЧИКИ ДЛЯ ТОЧЕК СТАРТА/КОНЦА ============
+  const onSetStartPoint = useCallback((nodeId: string) => {
+    console.log("📍 Setting start point:", nodeId);
+    editorStore.setStartPoint(nodeId);
+  }, [editorStore]);
+
+  const onSetEndPoint = useCallback((nodeId: string) => {
+    console.log("🎯 Setting end point:", nodeId);
+    editorStore.setEndPoint(nodeId);
+  }, [editorStore]);
+
+  const onClearPoints = useCallback(() => {
+    console.log("✗ Clearing points");
+    editorStore.clearPoints();
+  }, [editorStore]);
+
   // ============ КОНВЕРТАЦИЯ УЗЛОВ ============
   const convertToReactFlowNodes = useCallback((storeNodes: EditorNode[]): Node[] => {
     return storeNodes.map(node => {
@@ -110,6 +126,11 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
             status: node.status,
             ports: node.ports,
             icon: node.icon,
+            isStartPoint: editorStore.startPointId === node.id,
+            isEndPoint: editorStore.endPointId === node.id,
+            onSetStartPoint: () => onSetStartPoint(node.id),
+            onSetEndPoint: () => onSetEndPoint(node.id),
+            onClearPoints: onClearPoints,
           },
         };
       }
@@ -126,7 +147,7 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
         },
       };
     });
-  }, [editorStore.nodes, editorStore.selectedNodeId]);
+  }, [editorStore.nodes, editorStore.selectedNodeId, editorStore.startPointId, editorStore.endPointId, onSetStartPoint, onSetEndPoint, onClearPoints]);
 
   // ============ КОНВЕРТАЦИЯ СВЯЗЕЙ ============
   const convertToReactFlowEdges = useCallback((storeEdges: EditorEdge[]): Edge[] => {
@@ -193,9 +214,16 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
 
   // ============ ОБНОВЛЕНИЕ КАНВАСА ============
   const refreshCanvas = useCallback(() => {
+    console.log("🔄 Refreshing canvas, startPoint:", editorStore.startPointId, "endPoint:", editorStore.endPointId);
     setNodes(convertToReactFlowNodes(editorStore.nodes));
     setEdges(convertToReactFlowEdges(editorStore.edges));
-  }, [editorStore.nodes, editorStore.edges, convertToReactFlowNodes, convertToReactFlowEdges, setNodes, setEdges]);
+  }, [editorStore.nodes, editorStore.edges, editorStore.startPointId, editorStore.endPointId, convertToReactFlowNodes, convertToReactFlowEdges, setNodes, setEdges]);
+
+  // Следим за изменением точек старта/конца
+  useEffect(() => {
+    console.log("🎯 Points changed, refreshing canvas");
+    refreshCanvas();
+  }, [editorStore.startPointId, editorStore.endPointId, refreshCanvas]);
 
   // Следим за выделением и обновляем канвас
   useEffect(() => {
@@ -326,7 +354,6 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
       const factorNode = isSourceFactor ? sourceNode : targetNode;
       const elementNode = isSourceFactor ? targetNode : sourceNode;
       
-      // Проверяем, что элемент - это устройство или кабель (не фактор)
       if (elementNode.type !== EditorNodes.DEVICE && elementNode.type !== EditorNodes.CABLE) {
         console.warn("❌ Factor can only connect to DEVICE or CABLE");
         return;
@@ -346,7 +373,6 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
       
       console.log(`✅ Creating FACTOR_ELEMENT connection: ${factorNode.name} → ${elementNode.name}`);
     } 
-    // Если кабель с устройством - CABLE_DEVICE связь
     else if ((isSourceDevice && isTargetCable) || (isSourceCable && isTargetDevice)) {
       connectionType = ConnectionType.CABLE_DEVICE;
       edgeData = {
@@ -393,7 +419,6 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
       
       setEdges((eds) => addEdge(reactFlowEdge, eds));
       
-      // Обновляем состояние портов (только для CABLE_DEVICE)
       if (connectionType === ConnectionType.CABLE_DEVICE) {
         editorStore.updatePortConnection(connection.source, connection.sourceHandle!, true);
         editorStore.updatePortConnection(connection.target, connection.targetHandle!, true);

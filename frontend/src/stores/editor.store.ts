@@ -18,6 +18,38 @@ class EditorStore {
   private _zoom: number = 1;
   private _viewport: { x: number; y: number } = { x: 0, y: 0 };
 
+  private _startPointId: Nullable<string> = null;
+  private _endPointId: Nullable<string> = null;
+
+  get startPointId() {
+    return this._startPointId;
+  }
+
+  get endPointId() {
+    return this._endPointId;
+  }
+
+  get hasStartAndEndPoints(): boolean {
+    return this._startPointId !== null && this._endPointId !== null;
+  }
+
+  // EditorStore.ts
+  setStartPoint(nodeId: string) {
+    this._startPointId = nodeId;
+    console.log("📍 Start point set to:", nodeId);
+  }
+
+  setEndPoint(nodeId: string) {
+    this._endPointId = nodeId;
+    console.log("🎯 End point set to:", nodeId);
+  }
+
+  clearPoints() {
+    this._startPointId = null;
+    this._endPointId = null;
+    console.log("✗ Points cleared");
+  }
+
   constructor() {
     makeAutoObservable(this);
   }

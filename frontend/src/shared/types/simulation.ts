@@ -20,15 +20,6 @@ export interface SimulationProgress {
   isRunning: boolean;
 };
 
-export interface SimulationHistoryItem {
-  id: string;
-  name: string;
-  startedAt: string;
-  duration: number;
-  score: number;
-  grade: string;
-};
-
 export interface CriticalEvent {
   id: string;
   timestamp: number;
@@ -60,42 +51,76 @@ export interface NodeSimulationResult {
   criticalEvents: CriticalEvent[];
 };
 
+
+export interface RunSimulationRequest {
+  name: string;
+  startNodeId: string;      // Добавить
+  endNodeId: string;        // Добавить
+  durationSeconds: number;
+}
+
 export interface SimulationResult {
   id: string;
   name: string;
   schemaId: string;
   schemaName: string;
-  startedAt: string;
-  finishedAt: string;
+  startNodeId: string;       // Добавить
+  startNodeName: string;     // Добавить
+  endNodeId: string;         // Добавить
+  endNodeName: string;       // Добавить
   durationSeconds: number;
+  grade: string;             // Добавить
+  score: number;             // Добавить
+  createdAt: string;
   summary: {
     maxLatencyMs: number;
     avgLatencyMs: number;
-    maxPacketLossPercent: number;
-    avgPacketLossPercent: number;
-    minThroughputMbps: number;
-    grade: string;
+    minLatencyMs: number;
+    packetLossPercent: number;
+    throughputMbps: number;
+    devicesFailed: number;
+    cablesFailed: number;
+    bottlenecks: string[];
+    recommendation: string;
   };
   timeline: Array<{
     timestamp: number;
+    avgLatencyMs: number;
+    packetLossPercent: number;
     devices: Record<string, {
       latencyMs: number;
       packetLossPercent: number;
       throughputMbps: number;
-      status: string;
       temperature: number;
+      status: string;
     }>;
   }>;
-  criticalEvents: CriticalEvent[];
-};
+  events: Array<{
+    timestamp: number;
+    type: string;
+    deviceId: string;
+    deviceName: string;
+    message: string;
+    severity: string;
+  }>;
+}
 
-export interface RunSimulationRequest {
+export interface ValidationResponse {
+  valid: boolean;
+  errors: Array<{
+    type: string;
+    message: string;
+    nodeId?: string;
+  }>;
+}
+
+export interface SimulationHistoryItem {
+  id: string;
   name: string;
-  durationSeconds: number;
-  factors: {
-    temperature: number;
-    emi: number;
-    vibration: number;
-    dust: number;
-  };
-};
+  startNodeName: string;      // Добавить
+  endNodeName: string;        // Добавить
+  durationSeconds: number;    // Добавить
+  createdAt: string;          // Добавить
+  grade: string;
+  score: number;
+}

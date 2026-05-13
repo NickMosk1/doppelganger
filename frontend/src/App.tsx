@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { observer } from "mobx-react-lite";
-import { HomePage, LoginPage, SchemaEditorPage, SchemasPage } from "./pages";
+import { HomePage, LoginPage, SchemaEditorPage, SchemasPage, SimulationHistoryPage } from "./pages";
 import StoreProvider from "./stores/StoreProvider";
 import { useStores } from "./hooks/useStores";
 import { AppLayout, GlobalStyles } from "./shared";
@@ -29,6 +29,10 @@ const AppContent = observer(() => {
         <Route
           path="/editor/:id"
           element={isAuthenticated ? <SchemaEditorPage /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/history/:id"
+          element={isAuthenticated ? <SimulationHistoryPage /> : <Navigate to="/login" />}
         />
         <Route path="/" element={<Navigate to="/home" />} />
       </Routes>

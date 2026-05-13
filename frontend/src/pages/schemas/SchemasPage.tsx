@@ -20,10 +20,9 @@ import {
   SchemaCardFooter,
   SchemaCardActions,
   DraftBadge,
-  ValidationBadge,
   EmptyState,
   LoadingState,
-} from "./Schemas.styles";
+} from "./SchemasPage.styles";
 import SchemaService from "../../services/schema.service";
 import { SchemaSummary, Button, Dialog } from "../../shared";
 
@@ -85,11 +84,6 @@ const SchemasPage: React.FC = observer(() => {
       console.error("Failed to delete schema:", error);
     }
     setDeletingSchema(null);
-  };
-
-  const handleShowHistory = (schemaId: string) => {
-    console.log("Showing history for schema:", schemaId);
-    alert(`История симуляций для схемы ${schemaId} (в разработке)`);
   };
 
   const getDraftStatus = (schemaId: string) => {
@@ -178,11 +172,6 @@ const SchemasPage: React.FC = observer(() => {
                         {hasChanges ? "📝 Черновик" : "💾 Сохранено"}
                       </DraftBadge>
                     )}
-                    {draftStore.getDraftById(schema.id)?.lastValidationAt && (
-                      <ValidationBadge $isValid={true}>
-                        ✅ Валидация пройдена
-                      </ValidationBadge>
-                    )}
                   </div>
                   <SchemaCardActions>
                     <Button
@@ -195,9 +184,9 @@ const SchemasPage: React.FC = observer(() => {
                     <Button
                       variant="text"
                       size="small"
-                      onClick={() => handleShowHistory(schema.id)}
+                      onClick={() => navigate(`/history/${schema.id}`)}
                     >
-                      📊 История
+                      История
                     </Button>
                     <Button
                       variant="text"

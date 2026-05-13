@@ -1,9 +1,9 @@
-// src/shared/components/RightPanel/components/EditMode/DeviceEdit.tsx
-
 import React, { useState, useEffect } from 'react';
 import { EditorNode } from '../../../../../types';
 import { PropertyGroup, PropertyLabel, PropertyInput } from '../../RightPanel.styles';
 import { debounce } from 'lodash';
+import { useStores } from '../../../../../../hooks';
+import { Button } from '../../../../Button';
 
 interface DeviceEditProps {
   node: EditorNode;
@@ -12,6 +12,10 @@ interface DeviceEditProps {
 }
 
 const DeviceEdit: React.FC<DeviceEditProps> = ({ node, onDataChange, initialData }) => {
+  const { editorStore } = useStores();
+  const isStartPoint = editorStore.startPointId === node.id;
+  const isEndPoint = editorStore.endPointId === node.id;
+
   const [formData, setFormData] = useState({
     customName: initialData?.customName !== undefined ? initialData.customName : (node.customName || node.name),
     baseLatencyMs: initialData?.baseLatencyMs !== undefined ? initialData.baseLatencyMs : (node.baseLatencyMs || 0),
@@ -46,6 +50,37 @@ const DeviceEdit: React.FC<DeviceEditProps> = ({ node, onDataChange, initialData
           onChange={(e) => handleChange('customName', e.target.value)}
         />
       </PropertyGroup>
+
+      <PropertyGroup>
+        <PropertyLabel>Точки симуляции</PropertyLabel>
+        <div style={{ display: 'flex', gap: '12px', marginTop: '8px', flexWrap: 'wrap' }}>
+          <Button 
+            variant={isStartPoint ? "primary" : "outline"}
+            size="small"
+            onClick={() => editorStore.setStartPoint(node.id)}
+          >
+            {isStartPoint ? "✓ Старт" : "📍 Назначить старт"}
+          </Button>
+          <Button 
+            variant={isEndPoint ? "primary" : "outline"}
+            size="small"
+            onClick={() => editorStore.setEndPoint(node.id)}
+          >
+            {isEndPoint ? "✓ Финиш" : "🎯 Назначить финиш"}
+          </Button>
+        </div>
+        {(isStartPoint || isEndPoint) && (
+          <Button 
+            variant="text" 
+            size="small" 
+            onClick={() => editorStore.clearPoints()}
+            style={{ marginTop: '8px', color: '#ef4444' }}
+          >
+            Сбросить все точки
+          </Button>
+        )}
+      </PropertyGroup>
+
       <PropertyGroup>
         <PropertyLabel>Базовая задержка (мс)</PropertyLabel>
         <PropertyInput
@@ -55,6 +90,7 @@ const DeviceEdit: React.FC<DeviceEditProps> = ({ node, onDataChange, initialData
           onChange={(e) => handleChange('baseLatencyMs', parseFloat(e.target.value))}
         />
       </PropertyGroup>
+      
       <PropertyGroup>
         <PropertyLabel>Макс. пропускная способность (Мбит/с)</PropertyLabel>
         <PropertyInput

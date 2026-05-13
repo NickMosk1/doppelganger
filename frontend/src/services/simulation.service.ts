@@ -3,7 +3,7 @@ import { api } from "../utils/api";
 
 class SimulationService {
   async runSimulation(schemaId: string, request: RunSimulationRequest): Promise<SimulationResult> {
-    const response = await api.post<SimulationResult>(`/schemas/${schemaId}/simulate`, request);
+    const response = await api.post<SimulationResult>(`/schemas/${schemaId}/simulations/run`, request);
     return response.data;
   }
 

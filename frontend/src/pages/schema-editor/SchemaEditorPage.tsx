@@ -14,23 +14,22 @@ import {
 } from "./SchemaEditorPage.styles";
 import { Button, ConnectionType, EditorNodes, LeftPanel, NetworkCanvas, NodeStatus, PortType, RightPanel } from "../../shared";
 import EditorService from "../../services/editor.service";
-import SimulationService from "../../services/simulation.service";
 import CatalogService from "../../services/catalog.service";
-import { EditSchemaModal } from "../../shared/ui";
+import { EditSchemaModal, SimulationModal } from "../../shared/ui";
 import { generateDefaultPorts, getDeviceIcon, getFactorIcon } from "../../shared/components/Canvas/utils";
 
 const editorService = new EditorService();
-const simulationService = new SimulationService();
 const catalogService = new CatalogService();
 
 const SchemaEditorPage: React.FC = observer(() => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { editorStore, draftStore, simulationStore, catalogStore } = useStores();
+  const { editorStore, draftStore, catalogStore } = useStores();
   const [schemaName, setSchemaName] = useState("");
   const [schemaDescription, setSchemaDescription] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isSimulationModalOpen, setIsSimulationModalOpen] = useState(false);
 
   // Загрузка каталога
   useEffect(() => {
@@ -180,6 +179,59 @@ const SchemaEditorPage: React.FC = observer(() => {
     setIsEditModalOpen(true);
   };
 
+  const canRunSimulation = () => {
+    const hasStartAndEnd = editorStore.startPointId && editorStore.endPointId;
+    if (!hasStartAndEnd) return false;
+    
+    // Проверяем, есть ли путь между точками
+    const hasPath = checkPathBetweenNodes(editorStore.startPointId!, editorStore.endPointId!);
+    return hasPath;
+  };
+
+  const checkPathBetweenNodes = (startId: string, endId: string): boolean => {
+    // BFS для поиска пути
+    const adjacencyList = new Map<string, string[]>();
+    
+    editorStore.edges.forEach(edge => {
+      if (edge.connectionType === 'CABLE_DEVICE') {
+        adjacencyList.set(edge.sourceNodeId, [...(adjacencyList.get(edge.sourceNodeId) || []), edge.targetNodeId]);
+        adjacencyList.set(edge.targetNodeId, [...(adjacencyList.get(edge.targetNodeId) || []), edge.sourceNodeId]);
+      }
+    });
+
+    const queue: string[] = [startId];
+    const visited = new Set<string>([startId]);
+
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      if (current === endId) return true;
+      
+      const neighbors = adjacencyList.get(current) || [];
+      for (const neighbor of neighbors) {
+        if (!visited.has(neighbor)) {
+          visited.add(neighbor);
+          queue.push(neighbor);
+        }
+      }
+    }
+    return false;
+  };
+
+  // Обработчик открытия модалки
+  const handleOpenSimulation = () => {
+    if (!canRunSimulation()) {
+      alert("Укажите точки старта и финиша, соединённые кабелями");
+      return;
+    }
+    setIsSimulationModalOpen(true);
+  };
+
+  // Обработчик успешной симуляции
+  const handleSimulationSuccess = () => {
+    // Переход на страницу истории
+    navigate(`/history/${id}`);
+  };
+
   const handleSaveEdit = async (newName: string, newDescription: string) => {
     setSchemaName(newName);
     setSchemaDescription(newDescription);
@@ -201,75 +253,6 @@ const SchemaEditorPage: React.FC = observer(() => {
       } catch (error) {
         console.error("Failed to update schema on backend:", error);
       }
-    }
-  };
-
-  const handleValidate = async () => {
-    if (!id || id === "new") {
-      alert("Сначала сохраните схему");
-      return;
-    }
-    
-    try {
-      const result = await editorService.validateSchema(id);
-      draftStore.setValidationResult(id, result.errors || []);
-      if (result.errors?.length > 0) {
-        alert(`Найдено ${result.errors.length} проблем:\n${result.errors.map((e: any) => e.message).join("\n")}`);
-      } else {
-        alert("Схема валидна!");
-      }
-    } catch (error) {
-      console.error("Validation failed:", error);
-      alert("Ошибка при валидации");
-    }
-  };
-
-  const handleRunSimulation = async () => {
-    if (!id || id === "new") {
-      alert("Сначала сохраните схему");
-      return;
-    }
-    
-    simulationStore.setRunning(true);
-    try {
-      const result = await simulationService.runSimulation(id, {
-        name: `Симуляция ${new Date().toLocaleTimeString()}`,
-        durationSeconds: simulationStore.config.durationSeconds,
-        factors: simulationStore.globalFactors,
-      });
-      
-      simulationStore.setCurrentResult(result);
-      
-      const grade = result.summary?.grade || "F";
-      const maxLatency = result.summary?.maxLatencyMs || 0;
-      alert(`Симуляция завершена!\nОценка: ${grade}\nМакс. задержка: ${maxLatency} мс`);
-    } catch (error) {
-      console.error("Simulation failed:", error);
-      alert("Ошибка при запуске симуляции");
-    } finally {
-      simulationStore.setRunning(false);
-    }
-  };
-
-  const handleShowHistory = async () => {
-    if (!id || id === "new") {
-      alert("Сначала сохраните схему");
-      return;
-    }
-    
-    try {
-      const history = await simulationService.getSimulationHistory(id);
-      if (history.length === 0) {
-        alert("История симуляций пуста");
-      } else {
-        const historyText = history.map(h => 
-          `${new Date(h.startedAt).toLocaleString()} - ${h.name}: ${h.grade} (${h.score}%)`
-        ).join("\n");
-        alert(`История симуляций:\n${historyText}`);
-      }
-    } catch (error) {
-      console.error("Failed to load history:", error);
-      alert("Ошибка при загрузке истории");
     }
   };
 
@@ -386,11 +369,8 @@ const SchemaEditorPage: React.FC = observer(() => {
           )}
         </div>
         <ActionButtons>
-          <Button variant="outline" onClick={handleValidate}>Валидация</Button>
-          <Button variant="outline" onClick={handleRunSimulation} disabled={simulationStore.isRunning}>
-            {simulationStore.isRunning ? "Симуляция..." : "Симуляция"}
-          </Button>
-          <Button variant="outline" onClick={handleShowHistory}>История</Button>
+          <Button variant="outline" onClick={handleOpenSimulation} disabled={!editorStore.hasStartAndEndPoints}>Симуляция</Button>
+          <Button variant="outline" onClick={() => navigate(`/history/${id}`)}>История</Button>
           <Button onClick={handleSave} loading={isSaving}>Сохранить</Button>
         </ActionButtons>
       </HeaderActions>
@@ -407,6 +387,12 @@ const SchemaEditorPage: React.FC = observer(() => {
         onSave={handleSaveEdit}
         initialName={schemaName}
         initialDescription={schemaDescription}
+      />
+
+      <SimulationModal
+        isOpen={isSimulationModalOpen}
+        onClose={() => setIsSimulationModalOpen(false)}
+        onSuccess={handleSimulationSuccess}
       />
     </EditorContainer>
   );

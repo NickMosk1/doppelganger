@@ -2,11 +2,17 @@ import { Handle, Position } from "reactflow";
 import { observer } from "mobx-react-lite";
 import styled from "styled-components";
 import { Port, PortType } from "../../../../types";
+import { colors } from "../../../../theme";
 
-const DeviceNodeContainer = styled.div<{ selected: boolean }>`
+const DeviceNodeContainer = styled.div<{ selected: boolean; isStartPoint?: boolean; isEndPoint?: boolean }>`
   padding: 12px;
   background: white;
-  border: 2px solid ${props => props.selected ? '#e54848' : '#e2e8f0'};
+  border: 2px solid ${props => {
+    if (props.isStartPoint) return '#10b981';
+    if (props.isEndPoint) return '#ef4444';
+    if (props.selected) return colors.primary;
+    return '#e2e8f0';
+  }};
   border-radius: 12px;
   min-width: 160px;
   cursor: pointer;
@@ -18,6 +24,23 @@ const DeviceNodeContainer = styled.div<{ selected: boolean }>`
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     transform: translateY(-2px);
   }
+`;
+
+// Простая плашка сверху
+const TopBadge = styled.div<{ type: 'start' | 'end' }>`
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: ${props => props.type === 'start' ? '#10b981' : '#ef4444'};
+  color: white;
+  font-size: 10px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-weight: 500;
+  z-index: 20;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 `;
 
 const DeviceHeader = styled.div`
@@ -114,7 +137,6 @@ const StatusIndicator = styled.div<{ status?: string }>`
   text-align: center;
 `;
 
-// Handle для подключения факторов (снизу)
 const FactorHandle = styled(Handle)`
   position: absolute;
   bottom: -10px;
@@ -143,6 +165,8 @@ interface DeviceNodeProps {
     status?: string;
     ports?: Port[];
     icon?: string;
+    isStartPoint?: boolean;
+    isEndPoint?: boolean;
   };
   selected: boolean;
 }
@@ -152,7 +176,12 @@ const DeviceNode: React.FC<DeviceNodeProps> = observer(({ data, selected }) => {
   const rightPorts = data.ports?.filter((_, i) => i % 2 === 1) || [];
 
   return (
-    <DeviceNodeContainer selected={selected}>
+    <DeviceNodeContainer selected={selected} isStartPoint={data.isStartPoint} isEndPoint={data.isEndPoint}>
+      {/* Плашка сверху, если нода - точка старта */}
+      {data.isStartPoint && <TopBadge type="start">▶ СТАРТ</TopBadge>}
+      {/* Плашка сверху, если нода - точка финиша */}
+      {data.isEndPoint && <TopBadge type="end">■ ФИНИШ</TopBadge>}
+
       <DeviceHeader>
         <DeviceIcon>{data.icon || "🖥️"}</DeviceIcon>
         <DeviceInfo>
@@ -227,7 +256,6 @@ const DeviceNode: React.FC<DeviceNodeProps> = observer(({ data, selected }) => {
         </PortsColumn>
       </PortsContainer>
 
-      {/* Handle для подключения факторов (снизу) */}
       <FactorHandle
         type="target"
         position={Position.Bottom}
