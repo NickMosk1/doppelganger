@@ -41,7 +41,7 @@ interface NetworkCanvasProps {
 }
 
 const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
-  const { editorStore, draftStore } = useStores();
+  const { editorStore, draftStore, toastStore } = useStores();
   const { setCenter, setViewport } = useReactFlow();
   const viewport = useViewport();
 
@@ -326,7 +326,13 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
     
     // ❌ Запрещаем связь устройство-устройство
     if (sourceNode.type === EditorNodes.DEVICE && targetNode.type === EditorNodes.DEVICE) {
-      console.warn("❌ Cannot connect device to device directly");
+      toastStore.showError("Нельзя соединять устройство с устройством напрямую. Используйте кабель.");
+      return;
+    }
+    
+    // ❌ Запрещаем связь кабель-кабель
+    if (sourceNode.type === EditorNodes.CABLE && targetNode.type === EditorNodes.CABLE) {
+      toastStore.showError("Нельзя соединять кабель с кабелем напрямую.");
       return;
     }
     
@@ -355,7 +361,7 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
       const elementNode = isSourceFactor ? targetNode : sourceNode;
       
       if (elementNode.type !== EditorNodes.DEVICE && elementNode.type !== EditorNodes.CABLE) {
-        console.warn("❌ Factor can only connect to DEVICE or CABLE");
+        toastStore.showError("Фактор может влиять только на устройство или кабель.");
         return;
       }
       
@@ -373,6 +379,7 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
       
       console.log(`✅ Creating FACTOR_ELEMENT connection: ${factorNode.name} → ${elementNode.name}`);
     } 
+    // Если кабель с устройством - CABLE_DEVICE связь
     else if ((isSourceDevice && isTargetCable) || (isSourceCable && isTargetDevice)) {
       connectionType = ConnectionType.CABLE_DEVICE;
       edgeData = {
@@ -384,8 +391,35 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
       console.log(`✅ Creating CABLE_DEVICE connection: ${sourceNode.name} ↔ ${targetNode.name}`);
     }
     else {
-      console.warn(`❌ Unsupported connection type: ${sourceNode.type} → ${targetNode.type}`);
+      toastStore.showError(`Невозможно создать связь между ${sourceNode.type === EditorNodes.DEVICE ? 'устройством' : sourceNode.type === EditorNodes.CABLE ? 'кабелем' : 'элементом'} и ${targetNode.type === EditorNodes.DEVICE ? 'устройством' : targetNode.type === EditorNodes.CABLE ? 'кабелем' : 'элементом'}`);
       return;
+    }
+    
+    // Проверка на занятость портов (только для CABLE_DEVICE)
+    if (connectionType === ConnectionType.CABLE_DEVICE) {
+      const sourcePort = connection.sourceHandle;
+      const targetPort = connection.targetHandle;
+      
+      // Проверка, что handle не null
+      if (!sourcePort || !targetPort) {
+        toastStore.showError("Ошибка: не удалось определить порты для соединения");
+        return;
+      }
+      
+      const isSourcePortBusy = editorStore.isPortConnected(sourceNode.id, sourcePort);
+      const isTargetPortBusy = editorStore.isPortConnected(targetNode.id, targetPort);
+      
+      if (isSourcePortBusy) {
+        const portName = sourceNode.ports?.find(p => p.id === sourcePort)?.name || sourcePort;
+        toastStore.showError(`🔌 Порт "${portName}" на устройстве "${sourceNode.customName || sourceNode.name}" уже занят.`);
+        return;
+      }
+      
+      if (isTargetPortBusy) {
+        const portName = targetNode.ports?.find(p => p.id === targetPort)?.name || targetPort;
+        toastStore.showError(`🔌 Порт "${portName}" на устройстве "${targetNode.customName || targetNode.name}" уже занят.`);
+        return;
+      }
     }
     
     const newEdge = edgeData as EditorEdge;
@@ -422,9 +456,19 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
       if (connectionType === ConnectionType.CABLE_DEVICE) {
         editorStore.updatePortConnection(connection.source, connection.sourceHandle!, true);
         editorStore.updatePortConnection(connection.target, connection.targetHandle!, true);
+        
+        const sourceDeviceName = sourceNode.customName || sourceNode.name;
+        const targetDeviceName = targetNode.customName || targetNode.name;
+        toastStore.showSuccess(`🔌 Соединение создано: ${sourceDeviceName} ↔ ${targetDeviceName}`);
+      } else if (connectionType === ConnectionType.FACTOR_ELEMENT) {
+        const factorNode = isSourceFactor ? sourceNode : targetNode;
+        const elementNode = isSourceFactor ? targetNode : sourceNode;
+        toastStore.showSuccess(`🌡️ Фактор "${factorNode.customName || factorNode.name}" применён к "${elementNode.customName || elementNode.name}"`);
       }
+    } else {
+      toastStore.showWarning("Не удалось создать соединение. Возможно, связь уже существует.");
     }
-  }, [editorStore, setEdges]);
+  }, [editorStore, setEdges, toastStore]);
 
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
     editorStore.selectNode(node.id);
@@ -473,7 +517,7 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
           <MiniMap />
           <Panel position="top-left">
             <div style={{ background: "white", padding: "4px 12px", borderRadius: "6px", fontSize: "12px" }}>
-              🎯 Сетка | 📐 Zoom: {(viewport.zoom * 100).toFixed(0)}%
+              Zoom: {(viewport.zoom * 100).toFixed(0)}%
             </div>
           </Panel>
           <Panel position="top-right">

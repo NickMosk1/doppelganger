@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, ReactNode, FC, useEffect, useState } from "react";
-import { AUTH_STORE, CATALOG_STORE, DRAFT_STORE, EDITOR_STORE, SCHEMA_STORE, SIMULATION_STORE, USER_STORE } from "../identifiers";
+import { AUTH_STORE, CATALOG_STORE, DRAFT_STORE, EDITOR_STORE, SCHEMA_STORE, SIMULATION_STORE, TOAST_STORE, USER_STORE } from "../identifiers";
 import Injector from "../../utils/injector";
 import RootStore from "../root.store";
 import AuthStore from "../auth.store";
@@ -11,6 +11,7 @@ import CatalogStore from "../catalog.store";
 import SchemaStore from "../schema.store";
 import DraftStore from "../draft.store";
 import SimulationStore from "../simulation.store";
+import ToastStore from "../toast.store";
 
 interface StoreContextValue {
   rootStore: RootStore;
@@ -21,6 +22,7 @@ interface StoreContextValue {
   schemaStore: SchemaStore;
   draftStore: DraftStore;
   simulationStore: SimulationStore;
+  toastStore: ToastStore;
 };
 
 export const StoreContext = createContext<StoreContextValue | undefined>(undefined);
@@ -44,6 +46,7 @@ const StoreProvider: FC<StoreProviderProps> = ({ children }) => {
         schemaStore: rootStr.schemaStore,
         draftStore: rootStr.draftStore,
         simulationStore: rootStr.simulationStore,
+        toastStore: rootStr.toastStore,
       });
     }
   }, []);
@@ -56,6 +59,7 @@ const StoreProvider: FC<StoreProviderProps> = ({ children }) => {
     Injector.register(SCHEMA_STORE, rootStore.schemaStore);
     Injector.register(DRAFT_STORE, rootStore.draftStore);
     Injector.register(SIMULATION_STORE, rootStore.simulationStore);
+    Injector.register(TOAST_STORE, rootStore.toastStore);
 
     return (
       <StoreContext.Provider value={{ ...rootStore }}>

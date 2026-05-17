@@ -5,6 +5,7 @@ import StoreProvider from "./stores/StoreProvider";
 import { useStores } from "./hooks/useStores";
 import { AppLayout, GlobalStyles } from "./shared";
 import "reactflow/dist/style.css";
+import { ToastContainer } from "./shared/ui";
 
 const AppContent = observer(() => {
   const { userStore, authStore } = useStores();
@@ -36,6 +37,7 @@ const AppContent = observer(() => {
         />
         <Route path="/" element={<Navigate to="/home" />} />
       </Routes>
+      <ToastContainer />
     </AppLayout>
   );
 });

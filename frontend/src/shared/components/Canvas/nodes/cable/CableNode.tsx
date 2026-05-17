@@ -58,6 +58,26 @@ const FactorHandle = styled(Handle)`
   }
 `;
 
+// Handle для подключения факторов (снизу)
+const TopFactorHandle = styled(Handle)`
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 12px;
+  background: #f59e0b;
+  border-radius: 50%;
+  border: 2px solid white;
+  cursor: crosshair;
+  z-index: 10;
+  
+  &:hover {
+    background: #e54848;
+    transform: translateX(-50%) scale(1.2);
+  }
+`;
+
 interface CableNodeProps {
   data: {
     id: string;
@@ -111,7 +131,14 @@ const CableNode: React.FC<CableNodeProps> = observer(({ data, selected }) => {
       <FactorHandle
         type="target"
         position={Position.Bottom}
-        id="factor-connection"
+        id="factor-connection-bottom"
+      />
+
+      {/* Handle для подключения факторов (сверху) */}
+      <TopFactorHandle
+        type="target"
+        position={Position.Top}
+        id="factor-connection-top"
       />
     </CableNodeContainer>
   );

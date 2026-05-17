@@ -6,4 +6,5 @@ export { default as CatalogStore } from "./catalog.store";
 export { default as SchemaStore } from "./schema.store";
 export { default as DraftStore } from "./draft.store";
 export { default as SimulationStore } from "./simulation.store";
+export { default as ToastStore } from "./toast.store";
 export * from "./StoreProvider";

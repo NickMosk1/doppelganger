@@ -24,7 +24,7 @@ const catalogService = new CatalogService();
 const SchemaEditorPage: React.FC = observer(() => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { editorStore, draftStore, catalogStore } = useStores();
+  const { editorStore, draftStore, catalogStore, toastStore } = useStores();
   const [schemaName, setSchemaName] = useState("");
   const [schemaDescription, setSchemaDescription] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -334,10 +334,10 @@ const SchemaEditorPage: React.FC = observer(() => {
       
       // После успешного сохранения на бэке сбрасываем флаг
       draftStore.markAsSaved(schemaId ?? "");
-      alert("Схема сохранена");
+      toastStore.showSuccess("Схема успешно сохранена!");
     } catch (error) {
       console.error("Failed to save schema:", error);
-      alert("Ошибка при сохранении схемы");
+      toastStore.showError("Ошибка при сохранении схемы");
     } finally {
       setIsSaving(false);
     }

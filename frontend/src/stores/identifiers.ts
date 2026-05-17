@@ -5,3 +5,4 @@ export const CATALOG_STORE = Symbol("CatalogStore");
 export const SCHEMA_STORE = Symbol("SchemaStore");
 export const DRAFT_STORE = Symbol("DraftStore");
 export const SIMULATION_STORE = Symbol("SimulationStore");
+export const TOAST_STORE = Symbol("ToastStore");

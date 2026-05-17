@@ -191,7 +191,7 @@ const SimulationHistoryPage: React.FC = observer(() => {
 
                         {selectedSim.events && selectedSim.events.length > 0 && (
                           <DetailSection>
-                            <DetailTitle>⚠️ Критические события</DetailTitle>
+                            <DetailTitle>Критические события</DetailTitle>
                             {selectedSim.events.map((event, idx) => (
                               <DetailRow key={idx}>
                                 <DetailLabel>{event.type}</DetailLabel>

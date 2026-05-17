@@ -105,15 +105,6 @@ export interface SimulationResult {
   }>;
 }
 
-export interface ValidationResponse {
-  valid: boolean;
-  errors: Array<{
-    type: string;
-    message: string;
-    nodeId?: string;
-  }>;
-}
-
 export interface SimulationHistoryItem {
   id: string;
   name: string;

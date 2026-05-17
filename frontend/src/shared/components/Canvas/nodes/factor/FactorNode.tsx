@@ -73,6 +73,25 @@ const ConnectionHandle = styled(Handle)`
   }
 `;
 
+const BottomConnectionHandle = styled(Handle)`
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 12px;
+  background: #f59e0b;
+  border-radius: 50%;
+  border: 2px solid white;
+  cursor: crosshair;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: #e54848;
+    transform: translateX(-50%) scale(1.2);
+  }
+`;
+
 interface FactorNodeProps {
   data: {
     id: string;
@@ -106,7 +125,14 @@ const FactorNode: React.FC<FactorNodeProps> = observer(({ data, selected }) => {
       <ConnectionHandle
         type="source"
         position={Position.Top}
-        id="connection"
+        id="connection-top"
+      />
+
+      {/* Единый Handle сверху для подключения к устройствам/кабелям */}
+      <BottomConnectionHandle
+        type="source"
+        position={Position.Bottom}
+        id="connection-bottom"
       />
       
       <FactorIcon>{icon}</FactorIcon>
