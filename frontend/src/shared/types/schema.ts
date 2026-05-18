@@ -105,6 +105,7 @@ export interface SchemaSummary {
   updatedAt: string;
   devicesCount?: number;
   cablesCount?: number;
+  factorsCount?: number;
   connectionsCount?: number;
 }
 
@@ -114,5 +115,6 @@ export interface SchemaStats {
   depth: number;
   devicesCount: number;
   cablesCount: number;
+  factorsCount: number;
   subschemasCount: number;
 }

@@ -95,7 +95,7 @@ public class SchemaService {
         return Map.of(
             "devicesCount", devicesCount,
             "cablesCount", cablesCount,
-            "factorsCount", factorsCount,
+            "factorsCount", factorsCount,      // 🔧 ДОБАВИТЬ
             "subschemasCount", subschemasCount,
             "connectionsCount", connectionsCount,
             "depth", depth

@@ -1,10 +1,10 @@
-import { EditorStore } from '../../../../../../stores';
+import { observer } from 'mobx-react-lite';
+import { useStores } from '../../../../../../hooks';
 import { EditorEdge, ConnectionType } from '../../../../../types';
 import { NoSelectionMessage, ConnectionCard, ConnectionHeader, ConnectionDevice, PropertyGroup, PropertyLabel, PropertyValue, StatusBadge } from '../../RightPanel.styles';
 
 interface EdgeViewProps {
   edge: EditorEdge;
-  editorStore: EditorStore;
 }
 
 const getFactorTypeLabel = (type?: string) => {
@@ -17,7 +17,9 @@ const getFactorTypeLabel = (type?: string) => {
   }
 };
 
-export const EdgeView: React.FC<EdgeViewProps> = ({ edge, editorStore }) => {
+const EdgeView: React.FC<EdgeViewProps> = observer(({ edge }) => {
+  const { editorStore } = useStores();
+
   const sourceNode = editorStore.getNodeById(edge.sourceNodeId);
   const targetNode = editorStore.getNodeById(edge.targetNodeId);
   
@@ -93,6 +95,6 @@ export const EdgeView: React.FC<EdgeViewProps> = ({ edge, editorStore }) => {
       <p>Неизвестный тип связи</p>
     </NoSelectionMessage>
   );
-};
+});
 
 export default EdgeView;

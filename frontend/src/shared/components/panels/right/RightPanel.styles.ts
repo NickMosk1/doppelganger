@@ -305,6 +305,7 @@ export const ConnectionPort = styled.span`
 
 export const ConnectionDetails = styled.div`
   display: flex;
+  flex-direction: column;
   gap: 16px;
   padding-top: 8px;
   margin-left: 8px;

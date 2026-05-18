@@ -66,6 +66,7 @@ public class SimulationResponseDto {
         private String deviceName;
         private String message;
         private String severity;
+        private String recommendation;  // 👈 ДОБАВИТЬ ЭТО ПОЛЕ
     }
     
     @Data

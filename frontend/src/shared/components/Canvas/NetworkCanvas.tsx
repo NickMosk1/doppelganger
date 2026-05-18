@@ -491,6 +491,12 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
     setTimeout(() => setViewport({ x: 0, y: 0, zoom: 1 }), 100);
   }, [setViewport]);
 
+  // Подсчет статистики
+  const devicesCount = nodes.filter(n => n.type === 'device').length;
+  const cablesCount = nodes.filter(n => n.type === 'cable').length;
+  const factorsCount = nodes.filter(n => n.type === 'factor').length;
+  const connectionsCount = edges.length;
+
   return (
     <CanvasContainer>
       <CanvasWrapper>
@@ -521,8 +527,11 @@ const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
             </div>
           </Panel>
           <Panel position="top-right">
-            <div style={{ background: "white", padding: "4px 12px", borderRadius: "6px", fontSize: "12px" }}>
-              📊 Устройств: {nodes.filter(n => n.type === 'device').length} | 🔌 Кабелей: {nodes.filter(n => n.type === 'cable').length} | 🔗 Связей: {edges.length}
+            <div style={{ background: "white", padding: "4px 12px", borderRadius: "6px", fontSize: "12px", display: "flex", gap: "12px" }}>
+              <span>Устройств: {devicesCount}</span>
+              <span>Кабелей: {cablesCount}</span>
+              <span>Факторов: {factorsCount}</span>
+              <span>Связей: {connectionsCount}</span>
             </div>
           </Panel>
         </ReactFlow>

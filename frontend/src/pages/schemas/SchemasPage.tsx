@@ -22,6 +22,7 @@ import {
   DraftBadge,
   EmptyState,
   LoadingState,
+  VisibilityBadge,
 } from "./SchemasPage.styles";
 import SchemaService from "../../services/schema.service";
 import { SchemaSummary, Button, Dialog } from "../../shared";
@@ -57,12 +58,10 @@ const SchemasPage: React.FC = observer(() => {
     }
   };
 
-  // Создание схемы сразу с ID от бэка
   const handleCreateSchema = async () => {
     try {
       const newSchema = await schemaService.createSchema("Новая схема", "", false);
       schemaStore.addSchema(newSchema);
-      // Сразу переходим в редактор с реальным ID
       navigate(`/editor/${newSchema.id}`);
     } catch (error) {
       console.error("Failed to create schema:", error);
@@ -127,7 +126,7 @@ const SchemasPage: React.FC = observer(() => {
         <SchemasGrid>
           {schemas.map((schema) => {
             const { hasDraft, hasChanges } = getDraftStatus(schema.id);
-            
+
             return (
               <SchemaCard key={schema.id}>
                 <SchemaCardHeader>
@@ -156,14 +155,19 @@ const SchemasPage: React.FC = observer(() => {
                     <StatLabel>Кабелей</StatLabel>
                   </StatItem>
                   <StatItem>
+                    <StatValue>{schema.factorsCount || 0}</StatValue>
+                    <StatLabel>Факторов</StatLabel>
+                  </StatItem>
+                  <StatItem>
                     <StatValue>{schema.connectionsCount || 0}</StatValue>
                     <StatLabel>Связей</StatLabel>
                   </StatItem>
-                  <StatItem>
-                    <StatValue>{schema.isPublic ? "🌍" : "🔒"}</StatValue>
-                    <StatLabel>{schema.isPublic ? "Публичная" : "Приватная"}</StatLabel>
-                  </StatItem>
                 </SchemaCardStats>
+
+                {/* Плашка приватности/публичности */}
+                <VisibilityBadge $isPublic={schema.isPublic}>
+                  {schema.isPublic ? "🌍 Публичная" : "🔒 Приватная"}
+                </VisibilityBadge>
 
                 <SchemaCardFooter>
                   <div style={{ display: "flex", gap: "8px" }}>

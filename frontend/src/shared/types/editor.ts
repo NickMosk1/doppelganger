@@ -95,6 +95,8 @@ export interface EditorEdge {
   isActive?: boolean;
 }
 
+// src/shared/types/editor.ts
+
 export interface EditorNode {
   id: string;
   type: EditorNodes;
@@ -136,6 +138,10 @@ export interface EditorNode {
     factorUnit: string;
     factorRadius: number;
   };
+
+  deviceType?: string;
+  
+  // 🔧 ДОБАВИТЬ: Прямые поля для FACTOR (для удобства работы)
   factorType?: string;
   factorValue?: number;
   factorUnit?: string;

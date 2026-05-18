@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { EditorNode } from '../../../../../types';
 import { debounce } from 'lodash';
 import React from 'react';
@@ -18,15 +18,38 @@ const factorTypeOptions = [
 ];
 
 const FactorEdit: React.FC<FactorEditProps> = ({ node, onDataChange, initialData }) => {
+  // Получаем актуальные значения из node (с приоритетом на прямые поля)
+  const getCurrentValue = (field: string, defaultValue: any) => {
+    if (initialData && initialData[field] !== undefined) return initialData[field];
+    if (field === 'factorValue') return node.factorValue ?? node.factor?.factorValue ?? defaultValue;
+    if (field === 'factorRadius') return node.factorRadius ?? node.factor?.factorRadius ?? defaultValue;
+    if (field === 'customName') return node.customName || node.name || defaultValue;
+    if (field === 'isEnabled') return node.isEnabled !== false;
+    return defaultValue;
+  };
+
   const [formData, setFormData] = useState({
-    customName: initialData?.customName !== undefined ? initialData.customName : (node.customName || node.name),
-    factorValue: initialData?.factorValue !== undefined ? initialData.factorValue : (node.factorValue || 25),
-    factorRadius: initialData?.factorRadius !== undefined ? initialData.factorRadius : (node.factorRadius || 10),
-    isEnabled: initialData?.isEnabled !== undefined ? initialData.isEnabled : (node.isEnabled !== false),
+    customName: getCurrentValue('customName', node.name),
+    factorValue: getCurrentValue('factorValue', 25),
+    factorRadius: getCurrentValue('factorRadius', 10),
+    isEnabled: getCurrentValue('isEnabled', true),
   });
 
-  const debouncedOnDataChange = React.useCallback(
+  // Синхронизация с initialData
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        customName: initialData.customName !== undefined ? initialData.customName : (node.customName || node.name),
+        factorValue: initialData.factorValue !== undefined ? initialData.factorValue : (node.factorValue ?? node.factor?.factorValue ?? 25),
+        factorRadius: initialData.factorRadius !== undefined ? initialData.factorRadius : (node.factorRadius ?? node.factor?.factorRadius ?? 10),
+        isEnabled: initialData.isEnabled !== undefined ? initialData.isEnabled : (node.isEnabled !== false),
+      });
+    }
+  }, [initialData, node.customName, node.factorValue, node.factorRadius, node.isEnabled]);
+
+  const debouncedOnDataChange = useCallback(
     debounce((data: any) => {
+      console.log("📤 Sending factor data change:", data);
       onDataChange(data);
     }, 300),
     [onDataChange]
@@ -40,10 +63,13 @@ const FactorEdit: React.FC<FactorEditProps> = ({ node, onDataChange, initialData
   }, [formData, debouncedOnDataChange]);
 
   const handleChange = (field: string, value: any) => {
+    console.log(`✏️ Factor field changed: ${field} = ${value}`);
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const currentTypeInfo = factorTypeOptions.find(opt => opt.value === node.factorType) || factorTypeOptions[0];
+  const currentIsEnabled = formData.isEnabled;
+  const currentStatusText = currentIsEnabled ? "🟢 Активен" : "🔴 Неактивен";
 
   return (
     <>
@@ -88,31 +114,6 @@ const FactorEdit: React.FC<FactorEditProps> = ({ node, onDataChange, initialData
           value={formData.factorRadius}
           onChange={(e) => handleChange('factorRadius', parseFloat(e.target.value))}
         />
-      </PropertyGroup>
-
-      <PropertyGroup>
-        <PropertyLabel>Статус</PropertyLabel>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-            <input
-              type="radio"
-              checked={formData.isEnabled}
-              onChange={() => handleChange('isEnabled', true)}
-            />
-            Активен
-          </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-            <input
-              type="radio"
-              checked={!formData.isEnabled}
-              onChange={() => handleChange('isEnabled', false)}
-            />
-            Неактивен
-          </label>
-        </div>
-        <StatusBadge status={formData.isEnabled ? "success" : "error"} style={{ marginTop: '8px' }}>
-          {formData.isEnabled ? "🟢 Активен" : "🔴 Неактивен"}
-        </StatusBadge>
       </PropertyGroup>
     </>
   );

@@ -69,6 +69,7 @@ public class SchemaController {
                     .updatedAt(schema.getUpdatedAt() != null ? schema.getUpdatedAt().toString() : null)
                     .devicesCount((Long) stats.get("devicesCount"))
                     .cablesCount((Long) stats.get("cablesCount"))
+                    .factorsCount((Long) stats.get("factorsCount"))
                     .connectionsCount((Long) stats.get("connectionsCount"))
                     .build();
             })

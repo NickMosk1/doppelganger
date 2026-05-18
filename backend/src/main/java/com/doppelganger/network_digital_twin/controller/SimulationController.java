@@ -2,7 +2,8 @@ package com.doppelganger.network_digital_twin.controller;
 
 import com.doppelganger.network_digital_twin.dto.SimulationRequestDto;
 import com.doppelganger.network_digital_twin.dto.SimulationResponseDto;
-import com.doppelganger.network_digital_twin.service.SimulationService;
+import com.doppelganger.network_digital_twin.service.simulation.SimulationService;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;

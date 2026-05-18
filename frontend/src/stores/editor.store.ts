@@ -430,15 +430,6 @@ class EditorStore {
     }
   }
 
-  updateNodeField<T extends keyof EditorNode>(nodeId: string, field: T, value: EditorNode[T]) {
-    console.log(`🔄 updateNodeField: ${nodeId}, ${String(field)} = ${value}`);
-    const node = this._nodes.find(n => n.id === nodeId);
-    if (node) {
-      node[field] = value;
-      console.log(`✅ Node updated: ${node.customName || node.name}`);
-    }
-  }
-
   removeEdge(edgeId: string) {
     console.log("🗑️ EditorStore.removeEdge called:", edgeId);
     
@@ -535,18 +526,110 @@ class EditorStore {
     }
   }
 
-  updateFactorValue(nodeId: string, value: number) {
+  updateNode(nodeId: string, updates: Partial<EditorNode>) {
+    console.log(`🔄 updateNode: ${nodeId}`, updates);
     const node = this._nodes.find(n => n.id === nodeId);
-    if (node && node.type === EditorNodes.FACTOR) {
-      node.factorValue = value;
+    if (!node) {
+      console.warn(`Node ${nodeId} not found`);
+      return;
     }
-  }
-
-  updateFactorRadius(nodeId: string, radius: number) {
-    const node = this._nodes.find(n => n.id === nodeId);
-    if (node && node.type === EditorNodes.FACTOR) {
-      node.factorRadius = radius;
+    
+    // Обновляем все переданные поля
+    Object.keys(updates).forEach(key => {
+      const field = key as keyof EditorNode;
+      (node as any)[field] = updates[field];
+    });
+    
+    // Специальная обработка для FACTOR: синхронизируем корень и вложенный объект
+    if (node.type === EditorNodes.FACTOR) {
+      // Создаем factor объект если его нет
+      if (!node.factor) {
+        node.factor = {
+          factorType: node.factorType || "TEMPERATURE",
+          factorValue: node.factorValue ?? 0,
+          factorUnit: node.factorUnit || "",
+          factorRadius: node.factorRadius ?? 10,
+        };
+      }
+      
+      // Синхронизация: корень -> factor
+      if (updates.factorType !== undefined) {
+        node.factor.factorType = updates.factorType;
+      }
+      if (updates.factorValue !== undefined) {
+        node.factor.factorValue = updates.factorValue;
+      }
+      if (updates.factorUnit !== undefined) {
+        node.factor.factorUnit = updates.factorUnit;
+      }
+      if (updates.factorRadius !== undefined) {
+        node.factor.factorRadius = updates.factorRadius;
+      }
+      
+      // Синхронизация: factor -> корень (если обновились через вложенный объект)
+      if (updates.factor?.factorType !== undefined) {
+        node.factorType = updates.factor.factorType;
+      }
+      if (updates.factor?.factorValue !== undefined) {
+        node.factorValue = updates.factor.factorValue;
+      }
+      if (updates.factor?.factorUnit !== undefined) {
+        node.factorUnit = updates.factor.factorUnit;
+      }
+      if (updates.factor?.factorRadius !== undefined) {
+        node.factorRadius = updates.factor.factorRadius;
+      }
     }
+    
+    // Специальная обработка для DEVICE: синхронизируем корень и device объект
+    if (node.type === EditorNodes.DEVICE) {
+      if (!node.device) {
+        node.device = {
+          id: node.id,
+          name: node.name,
+          type: node.deviceType || "CUSTOM",
+          manufacturer: node.manufacturer || "",
+        };
+      }
+      
+      if (updates.baseLatencyMs !== undefined) {
+        node.device.baseLatencyMs = updates.baseLatencyMs;
+      }
+      if (updates.maxThroughputMbps !== undefined) {
+        node.device.maxThroughputMbps = updates.maxThroughputMbps;
+      }
+      
+      // Обратная синхронизация
+      if (updates.device?.baseLatencyMs !== undefined) {
+        node.baseLatencyMs = updates.device.baseLatencyMs;
+      }
+      if (updates.device?.maxThroughputMbps !== undefined) {
+        node.maxThroughputMbps = updates.device.maxThroughputMbps;
+      }
+    }
+    
+    // Для CABLE
+    if (node.type === EditorNodes.CABLE) {
+      if (updates.lengthM !== undefined) {
+        node.lengthM = updates.lengthM;
+        node.cableLengthM = updates.lengthM; // синхронизация
+      }
+      if (updates.cableLengthM !== undefined) {
+        node.lengthM = updates.cableLengthM;
+        node.cableLengthM = updates.cableLengthM;
+      }
+      if (updates.customName !== undefined) {
+        node.customName = updates.customName;
+      }
+      if (updates.bandwidthMbps !== undefined) {
+        node.bandwidthMbps = updates.bandwidthMbps;
+      }
+    }
+    
+    console.log(`✅ Node updated: ${node.customName || node.name}`, {
+      factorValue: node.factorValue,
+      factor: node.factor,
+    });
   }
 }
 

@@ -35,6 +35,11 @@ export const SchemaCard = styled.div`
   border: 1px solid ${colors.border};
   padding: 24px;
   transition: all 0.2s ease;
+
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
   
   &:hover {
     transform: translateY(-2px);
@@ -47,6 +52,7 @@ export const SchemaCardHeader = styled.div`
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 20px;
+  width: 100%;
 `;
 
 export const SchemaNameText = styled.span`
@@ -81,7 +87,8 @@ export const SchemaCardStats = styled.div`
   padding: 20px 0;
   border-top: 1px solid ${colors.border};
   border-bottom: 1px solid ${colors.border};
-  margin-bottom: 20px;
+  margin-bottom: 10px;
+  width: 100%;
 `;
 
 export const StatItem = styled.div`
@@ -111,6 +118,7 @@ export const SchemaCardFooter = styled.div`
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
+  width: 100%;
 `;
 
 export const SchemaCardActions = styled.div`
@@ -168,4 +176,19 @@ export const LoadingState = styled.div`
   height: 60vh;
   font-size: 18px;
   color: ${colors.textLight};
+`;
+
+export const VisibilityBadge = styled.div<{ $isPublic: boolean }>`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  width: fit-content;
+  margin: 0 0 8px 0;
+  background: ${props => props.$isPublic ? '#e8f5e9' : '#f3f4f6'};
+  color: ${props => props.$isPublic ? '#2e7d32' : '#6b7280'};
+  border: 1px solid ${props => props.$isPublic ? '#a5d6a7' : '#e5e7eb'};
 `;
