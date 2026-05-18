@@ -252,7 +252,7 @@ const SimulationModal: React.FC<SimulationModalProps> = ({ isOpen, onClose, onSu
       <SectionTitle>📡 Маршрут передачи данных</SectionTitle>
       <PathContainer>
         <PathTitle>
-          {isPathValid ? '✅ Маршрут найден' : '❌ Маршрут не найден'}
+          {isPathValid ? 'Маршрут найден' : 'Маршрут не найден'}
         </PathTitle>
         <PathList>
           {path.map((node, idx) => (

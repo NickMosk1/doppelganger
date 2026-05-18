@@ -30,6 +30,23 @@ public interface DeviceRepository extends JpaRepository<Device, String> {
     // Поиск устройств с пропускной способностью больше указанной
     List<Device> findByMaxThroughputMbpsGreaterThan(Integer minThroughput);
 
+    // ============ НОВЫЕ МЕТОДЫ ============
+    
+    // Поиск устройств с макс. рабочей температурой выше указанной
+    List<Device> findByMaxOperatingTempGreaterThanEqual(Double minTemp);
+    
+    // Поиск устройств с устойчивостью к ЭМИ выше указанной
+    List<Device> findByMaxEmiToleranceGreaterThanEqual(Double minEmiTolerance);
+    
+    // Поиск устройств по необходимости охлаждения
+    List<Device> findByNeedsCooling(Boolean needsCooling);
+    
+    // Поиск устройств по IP защите
+    List<Device> findByIpRating(String ipRating);
+    
+    // Поиск устройств с резервным питанием
+    List<Device> findByHasRedundantPowerTrue();
+    
     // Кастомный запрос: поиск устройств, подходящих для промышленных условий
     @Query("SELECT d FROM Device d WHERE d.tempCoefficient < :maxTempCoeff AND d.emiCoefficient < :maxEmiCoeff")
     List<Device> findIndustrialGradeDevices(@Param("maxTempCoeff") Double maxTempCoeff,

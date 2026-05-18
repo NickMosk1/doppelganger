@@ -2,11 +2,16 @@ package com.doppelganger.network_digital_twin.service;
 
 import com.doppelganger.network_digital_twin.entity.Schema;
 import com.doppelganger.network_digital_twin.entity.SchemaNode;
+import com.doppelganger.network_digital_twin.entity.Cable;
 import com.doppelganger.network_digital_twin.entity.Device;
+import com.doppelganger.network_digital_twin.entity.FactorNode;
 import com.doppelganger.network_digital_twin.exception.ResourceNotFoundException;
 import com.doppelganger.network_digital_twin.repository.SchemaNodeRepository;
 import com.doppelganger.network_digital_twin.repository.SchemaRepository;
+import com.doppelganger.network_digital_twin.repository.CableRepository;
 import com.doppelganger.network_digital_twin.repository.DeviceRepository;
+import com.doppelganger.network_digital_twin.repository.FactorNodeRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,6 +27,8 @@ public class SchemaNodeService {
     private final SchemaNodeRepository schemaNodeRepository;
     private final SchemaRepository schemaRepository;
     private final DeviceRepository deviceRepository;
+    private final CableRepository cableRepository;
+    private final FactorNodeRepository factorNodeRepository;
     
     // Получить все узлы схемы
     public List<SchemaNode> getNodesBySchemaId(String schemaId) {
@@ -146,32 +153,6 @@ public class SchemaNodeService {
     }
 
     @Transactional
-    public SchemaNode addDeviceToSchema(String schemaId, String deviceId, 
-                                        Double posX, Double posY, String customName) {
-        log.info("Adding device to schema: schemaId={}, deviceId={}", schemaId, deviceId);
-        
-        Schema schema = schemaRepository.findById(schemaId)
-            .orElseThrow(() -> new ResourceNotFoundException("Schema not found: " + schemaId));
-        
-        Device device = deviceRepository.findById(deviceId)
-            .orElseThrow(() -> new ResourceNotFoundException("Device not found: " + deviceId));
-        
-        SchemaNode node = new SchemaNode();
-        node.setSchema(schema);
-        node.setDevice(device);
-        node.setNodeType(SchemaNode.NodeType.DEVICE);
-        node.setCustomName(customName != null ? customName : device.getName());
-        node.setPositionX(posX != null ? posX : 0.0);
-        node.setPositionY(posY != null ? posY : 0.0);
-        node.setIsEnabled(true);
-        
-        SchemaNode saved = schemaNodeRepository.save(node);
-        log.info("Device saved with id: {}", saved.getId());
-        
-        return saved;
-    }
-
-    @Transactional
     public SchemaNode addCableToSchema(String schemaId, String name, String customName, 
                                         Double posX, Double posY, Double lengthM, String cableType) {
         log.info("Adding cable to schema: schemaId={}, name={}", schemaId, name);
@@ -202,5 +183,108 @@ public class SchemaNodeService {
 
     public SchemaNode save(SchemaNode node) {
         return schemaNodeRepository.save(node);
+    }
+
+    @Transactional
+    public SchemaNode addDeviceToSchema(String schemaId, String deviceId, 
+                                        Double posX, Double posY, String customName) {
+        log.info("Adding device to schema: schemaId={}, deviceId={}", schemaId, deviceId);
+        
+        Schema schema = schemaRepository.findById(schemaId)
+            .orElseThrow(() -> new ResourceNotFoundException("Schema not found: " + schemaId));
+        
+        Device device = deviceRepository.findById(deviceId)
+            .orElseThrow(() -> new ResourceNotFoundException("Device not found: " + deviceId));
+        
+        SchemaNode node = new SchemaNode();
+        node.setSchema(schema);
+        node.setDevice(device);
+        node.setNodeType(SchemaNode.NodeType.DEVICE);
+        node.setCustomName(customName != null ? customName : device.getName());
+        node.setPositionX(posX != null ? posX : 0.0);
+        node.setPositionY(posY != null ? posY : 0.0);
+        node.setIsEnabled(true);
+        
+        // Копируем промышленные коэффициенты из шаблона
+        node.setTemperatureOffset(device.getTempCoefficient() != null ? device.getTempCoefficient() : 0.0);
+        node.setEmiOffset(device.getEmiCoefficient() != null ? device.getEmiCoefficient() : 0.0);
+        node.setVibrationOffset(device.getVibrationCoefficient() != null ? device.getVibrationCoefficient() : 0.0);
+        node.setDustOffset(device.getDustCoefficient() != null ? device.getDustCoefficient() : 0.0);
+        
+        SchemaNode saved = schemaNodeRepository.save(node);
+        log.info("Device saved with id: {}", saved.getId());
+        
+        return saved;
+    }
+    
+    @Transactional
+    public SchemaNode addCableToSchema(String schemaId, String cableId,
+                                        Double posX, Double posY, String customName,
+                                        Double lengthM) {
+        log.info("Adding cable to schema: schemaId={}, cableId={}", schemaId, cableId);
+        
+        Schema schema = schemaRepository.findById(schemaId)
+            .orElseThrow(() -> new ResourceNotFoundException("Schema not found: " + schemaId));
+        
+        Cable cable = cableRepository.findById(cableId)
+            .orElseThrow(() -> new ResourceNotFoundException("Cable not found: " + cableId));
+        
+        SchemaNode node = new SchemaNode();
+        node.setSchema(schema);
+        node.setNodeType(SchemaNode.NodeType.CABLE);
+        node.setCustomName(customName != null ? customName : cable.getName());
+        node.setPositionX(posX != null ? posX : 0.0);
+        node.setPositionY(posY != null ? posY : 0.0);
+        node.setCableLengthM(lengthM != null ? lengthM : cable.getMaxLengthM());
+        node.setCableType(cable.getType().toString());
+        node.setBandwidthMbps(1000.0);
+        node.setIsEnabled(true);
+        
+        SchemaNode saved = schemaNodeRepository.save(node);
+        log.info("Cable saved with id: {}", saved.getId());
+        
+        return saved;
+    }
+    
+    @Transactional
+    public SchemaNode addFactorToSchema(String schemaId, String factorId,
+                                         Double posX, Double posY, String customName) {
+        log.info("Adding factor to schema: schemaId={}, factorId={}", schemaId, factorId);
+        
+        Schema schema = schemaRepository.findById(schemaId)
+            .orElseThrow(() -> new ResourceNotFoundException("Schema not found: " + schemaId));
+        
+        FactorNode factor = factorNodeRepository.findById(factorId)
+            .orElseThrow(() -> new ResourceNotFoundException("Factor not found: " + factorId));
+        
+        SchemaNode node = new SchemaNode();
+        node.setSchema(schema);
+        node.setNodeType(SchemaNode.NodeType.FACTOR);
+        node.setCustomName(customName != null ? customName : factor.getName());
+        node.setPositionX(posX != null ? posX : 0.0);
+        node.setPositionY(posY != null ? posY : 0.0);
+        node.setFactorType(factor.getFactorType());
+        node.setFactorValue(factor.getFactorValue());
+        node.setFactorUnit(factor.getFactorUnit());
+        node.setFactorRadius(factor.getFactorRadius());
+        node.setChangeRatePerSecond(factor.getChangeRatePerSecond());
+        node.setMinValue(factor.getMinValue());
+        node.setMaxValue(factor.getMaxValue());
+        node.setValueChangePattern(factor.getValueChangePattern());
+        node.setFrequencyHz(factor.getFrequencyHz());
+        node.setStartTimeSeconds(factor.getStartTimeSeconds());
+        node.setDurationSeconds(factor.getDurationSeconds());
+        node.setFalloffType(factor.getFalloffType());
+        node.setFalloffExponent(factor.getFalloffExponent());
+        node.setWarningThreshold(factor.getWarningThreshold());
+        node.setCriticalThreshold(factor.getCriticalThreshold());
+        node.setFailureThreshold(factor.getFailureThreshold());
+        node.setPriority(factor.getPriority());
+        node.setIsEnabled(true);
+        
+        SchemaNode saved = schemaNodeRepository.save(node);
+        log.info("Factor saved with id: {}", saved.getId());
+        
+        return saved;
     }
 }

@@ -58,6 +58,23 @@ public class CableService {
         return cableRepository.findByPricePerMeterLessThan(maxPrice);
     }
     
+    // ============ НОВЫЕ МЕТОДЫ ============
+    
+    public List<Cable> getOilResistantCables() {
+        log.debug("Fetching oil resistant cables");
+        return cableRepository.findByOilResistanceTrue();
+    }
+    
+    public List<Cable> getUvResistantCables() {
+        log.debug("Fetching UV resistant cables");
+        return cableRepository.findByUvResistanceTrue();
+    }
+    
+    public List<Cable> getLongLifetimeCables(Integer minYears) {
+        log.debug("Fetching cables with lifetime >= {} years", minYears);
+        return cableRepository.findByExpectedLifetimeYearsGreaterThanEqual(minYears);
+    }
+    
     @Transactional
     public Cable createCable(Cable cable) {
         log.info("Creating new cable: {}", cable.getName());
@@ -66,11 +83,18 @@ public class CableService {
             throw new IllegalArgumentException("Cable with name '" + cable.getName() + "' already exists");
         }
         
+        // Установка значений по умолчанию
         if (cable.getIsActive() == null) cable.setIsActive(true);
         if (cable.getPropagationSpeed() == null) cable.setPropagationSpeed(0.65);
         if (cable.getImmunityRating() == null) cable.setImmunityRating(5);
         if (cable.getTemperatureRating() == null) cable.setTemperatureRating(60);
         if (cable.getShieldingType() == null) cable.setShieldingType(0);
+        if (cable.getOilResistance() == null) cable.setOilResistance(false);
+        if (cable.getUvResistance() == null) cable.setUvResistance(false);
+        if (cable.getExpectedLifetimeYears() == null) cable.setExpectedLifetimeYears(10);
+        if (cable.getDegradationRatePerYear() == null) cable.setDegradationRatePerYear(2.0);
+        if (cable.getBendingRadiusMm() == null) cable.setBendingRadiusMm(50.0);
+        if (cable.getTensileStrengthN() == null) cable.setTensileStrengthN(100);
         
         return cableRepository.save(cable);
     }
@@ -94,8 +118,24 @@ public class CableService {
         existingCable.setTemperatureRating(updatedCable.getTemperatureRating());
         existingCable.setShieldingType(updatedCable.getShieldingType());
         existingCable.setPricePerMeter(updatedCable.getPricePerMeter());
+        
+        // Новые поля
+        existingCable.setBendingRadiusMm(updatedCable.getBendingRadiusMm());
+        existingCable.setTensileStrengthN(updatedCable.getTensileStrengthN());
+        existingCable.setOperatingTensionMaxN(updatedCable.getOperatingTensionMaxN());
+        existingCable.setCapacitancePerKmNf(updatedCable.getCapacitancePerKmNf());
+        existingCable.setResistancePerKmOhms(updatedCable.getResistancePerKmOhms());
+        existingCable.setMaxFrequencyMhz(updatedCable.getMaxFrequencyMhz());
+        existingCable.setSignalToNoiseRatioDb(updatedCable.getSignalToNoiseRatioDb());
+        existingCable.setOilResistance(updatedCable.getOilResistance());
+        existingCable.setUvResistance(updatedCable.getUvResistance());
+        existingCable.setChemicalResistance(updatedCable.getChemicalResistance());
+        existingCable.setExpectedLifetimeYears(updatedCable.getExpectedLifetimeYears());
+        existingCable.setDegradationRatePerYear(updatedCable.getDegradationRatePerYear());
+        
         existingCable.setDescription(updatedCable.getDescription());
         existingCable.setIsActive(updatedCable.getIsActive());
+        existingCable.setIsCustom(updatedCable.getIsCustom());
         
         return cableRepository.save(existingCable);
     }

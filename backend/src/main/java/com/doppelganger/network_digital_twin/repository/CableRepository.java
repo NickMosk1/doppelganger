@@ -40,6 +40,20 @@ public interface CableRepository extends JpaRepository<Cable, String> {
     // Кабели с низким затуханием
     List<Cable> findByAttenuationDbPerKmLessThan(Double maxAttenuation);
     
+    // ============ НОВЫЕ МЕТОДЫ ============
+    
+    // Кабели с маслостойкостью
+    List<Cable> findByOilResistanceTrue();
+    
+    // Кабели с УФ-устойчивостью
+    List<Cable> findByUvResistanceTrue();
+    
+    // Кабели с долгим сроком службы
+    List<Cable> findByExpectedLifetimeYearsGreaterThanEqual(Integer minYears);
+    
+    // Кабели с низкой скоростью деградации
+    List<Cable> findByDegradationRatePerYearLessThan(Double maxRate);
+    
     // Проверка существования
     boolean existsByName(String name);
 }

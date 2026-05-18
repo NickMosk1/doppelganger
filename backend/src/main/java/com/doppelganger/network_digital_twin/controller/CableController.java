@@ -1,5 +1,6 @@
 package com.doppelganger.network_digital_twin.controller;
 
+import com.doppelganger.network_digital_twin.dto.CableDto;
 import com.doppelganger.network_digital_twin.entity.Cable;
 import com.doppelganger.network_digital_twin.entity.Cable.CableType;
 import com.doppelganger.network_digital_twin.service.CableService;
@@ -10,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/cables")
@@ -20,23 +22,51 @@ public class CableController {
     private final CableService cableService;
     
     @GetMapping
-    public ResponseEntity<List<Cable>> getAllCables() {
-        return ResponseEntity.ok(cableService.getAllCables());
+    public ResponseEntity<List<CableDto>> getAllCables() {
+        List<CableDto> cables = cableService.getAllCables().stream()
+            .map(CableDto::fromEntity)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(cables);
     }
     
     @GetMapping("/active")
-    public ResponseEntity<List<Cable>> getActiveCables() {
-        return ResponseEntity.ok(cableService.getActiveCables());
+    public ResponseEntity<List<CableDto>> getActiveCables() {
+        List<CableDto> cables = cableService.getActiveCables().stream()
+            .map(CableDto::fromEntity)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(cables);
     }
     
     @GetMapping("/industrial")
-    public ResponseEntity<List<Cable>> getIndustrialCables() {
-        return ResponseEntity.ok(cableService.getIndustrialCables());
+    public ResponseEntity<List<CableDto>> getIndustrialCables() {
+        List<CableDto> cables = cableService.getIndustrialCables().stream()
+            .map(CableDto::fromEntity)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(cables);
     }
     
     @GetMapping("/shielded")
-    public ResponseEntity<List<Cable>> getShieldedCables() {
-        return ResponseEntity.ok(cableService.getShieldedCables());
+    public ResponseEntity<List<CableDto>> getShieldedCables() {
+        List<CableDto> cables = cableService.getShieldedCables().stream()
+            .map(CableDto::fromEntity)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(cables);
+    }
+    
+    @GetMapping("/oil-resistant")
+    public ResponseEntity<List<CableDto>> getOilResistantCables() {
+        List<CableDto> cables = cableService.getOilResistantCables().stream()
+            .map(CableDto::fromEntity)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(cables);
+    }
+    
+    @GetMapping("/uv-resistant")
+    public ResponseEntity<List<CableDto>> getUvResistantCables() {
+        List<CableDto> cables = cableService.getUvResistantCables().stream()
+            .map(CableDto::fromEntity)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(cables);
     }
     
     @GetMapping("/types")
@@ -52,29 +82,37 @@ public class CableController {
     }
     
     @GetMapping("/{id}")
-    public ResponseEntity<Cable> getCableById(@PathVariable String id) {
-        return ResponseEntity.ok(cableService.getCableById(id));
+    public ResponseEntity<CableDto> getCableById(@PathVariable String id) {
+        Cable cable = cableService.getCableById(id);
+        return ResponseEntity.ok(CableDto.fromEntity(cable));
     }
     
     @GetMapping("/type/{type}")
-    public ResponseEntity<List<Cable>> getCablesByType(@PathVariable CableType type) {
-        return ResponseEntity.ok(cableService.getCablesByType(type));
+    public ResponseEntity<List<CableDto>> getCablesByType(@PathVariable CableType type) {
+        List<CableDto> cables = cableService.getCablesByType(type).stream()
+            .map(CableDto::fromEntity)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(cables);
     }
     
     @GetMapping("/search/price")
-    public ResponseEntity<List<Cable>> searchByPrice(@RequestParam Double maxPrice) {
-        return ResponseEntity.ok(cableService.searchCablesByPrice(maxPrice));
+    public ResponseEntity<List<CableDto>> searchByPrice(@RequestParam Double maxPrice) {
+        List<CableDto> cables = cableService.searchCablesByPrice(maxPrice).stream()
+            .map(CableDto::fromEntity)
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(cables);
     }
     
     @PostMapping
-    public ResponseEntity<Cable> createCable(@Valid @RequestBody Cable cable) {
+    public ResponseEntity<CableDto> createCable(@Valid @RequestBody Cable cable) {
         Cable created = cableService.createCable(cable);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        return ResponseEntity.status(HttpStatus.CREATED).body(CableDto.fromEntity(created));
     }
     
     @PutMapping("/{id}")
-    public ResponseEntity<Cable> updateCable(@PathVariable String id, @Valid @RequestBody Cable cable) {
-        return ResponseEntity.ok(cableService.updateCable(id, cable));
+    public ResponseEntity<CableDto> updateCable(@PathVariable String id, @Valid @RequestBody Cable cable) {
+        Cable updated = cableService.updateCable(id, cable);
+        return ResponseEntity.ok(CableDto.fromEntity(updated));
     }
     
     @DeleteMapping("/{id}")

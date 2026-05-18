@@ -59,6 +59,26 @@ public class DeviceService {
         return deviceRepository.findByNameContainingIgnoreCase(name);
     }
     
+    public List<Device> getDevicesByMaxOperatingTemp(Double minTemp) {
+        log.debug("Fetching devices with max operating temp >= {}", minTemp);
+        return deviceRepository.findByMaxOperatingTempGreaterThanEqual(minTemp);
+    }
+    
+    public List<Device> getDevicesByMaxEmiTolerance(Double minEmiTolerance) {
+        log.debug("Fetching devices with max emi tolerance >= {}", minEmiTolerance);
+        return deviceRepository.findByMaxEmiToleranceGreaterThanEqual(minEmiTolerance);
+    }
+    
+    public List<Device> getDevicesByNeedsCooling(Boolean needsCooling) {
+        log.debug("Fetching devices with needsCooling = {}", needsCooling);
+        return deviceRepository.findByNeedsCooling(needsCooling);
+    }
+    
+    public List<Device> getDevicesByIpRating(String ipRating) {
+        log.debug("Fetching devices with ipRating = {}", ipRating);
+        return deviceRepository.findByIpRating(ipRating);
+    }
+    
     @Transactional
     public Device createDevice(Device device) {
         log.info("Creating new device: {}", device.getName());
@@ -67,11 +87,28 @@ public class DeviceService {
             throw new IllegalArgumentException("Device with name '" + device.getName() + "' already exists");
         }
         
+        // Установка значений по умолчанию
         if (device.getTempCoefficient() == null) device.setTempCoefficient(1.0);
         if (device.getEmiCoefficient() == null) device.setEmiCoefficient(1.0);
         if (device.getVibrationCoefficient() == null) device.setVibrationCoefficient(1.0);
         if (device.getDustCoefficient() == null) device.setDustCoefficient(1.0);
         if (device.getIsActive() == null) device.setIsActive(true);
+        
+        // Значения по умолчанию для допустимых диапазонов
+        if (device.getMaxOperatingTemp() == null) device.setMaxOperatingTemp(70.0);
+        if (device.getMinOperatingTemp() == null) device.setMinOperatingTemp(0.0);
+        if (device.getMaxEmiTolerance() == null) device.setMaxEmiTolerance(80.0);
+        if (device.getMaxVibrationTolerance() == null) device.setMaxVibrationTolerance(100.0);
+        
+        // Значения по умолчанию для экономических показателей
+        if (device.getReplacementCost() == null) device.setReplacementCost(0.0);
+        if (device.getRepairCost() == null) device.setRepairCost(0.0);
+        
+        // Значения по умолчанию для защиты
+        if (device.getNeedsCooling() == null) device.setNeedsCooling(false);
+        if (device.getHasRedundantPower() == null) device.setHasRedundantPower(false);
+        if (device.getIpRating() == null) device.setIpRating("IP20");
+        if (device.getOperatingHumidityMax() == null) device.setOperatingHumidityMax(85);
         
         return deviceRepository.save(device);
     }
@@ -95,6 +132,30 @@ public class DeviceService {
         existingDevice.setEmiCoefficient(updatedDevice.getEmiCoefficient());
         existingDevice.setVibrationCoefficient(updatedDevice.getVibrationCoefficient());
         existingDevice.setDustCoefficient(updatedDevice.getDustCoefficient());
+        
+        // Допустимые диапазоны
+        existingDevice.setMaxOperatingTemp(updatedDevice.getMaxOperatingTemp());
+        existingDevice.setMinOperatingTemp(updatedDevice.getMinOperatingTemp());
+        existingDevice.setMaxEmiTolerance(updatedDevice.getMaxEmiTolerance());
+        existingDevice.setMaxVibrationTolerance(updatedDevice.getMaxVibrationTolerance());
+        
+        // Надежность
+        existingDevice.setMtbfHours(updatedDevice.getMtbfHours());
+        existingDevice.setMttrMinutes(updatedDevice.getMttrMinutes());
+        existingDevice.setWarmUpTimeSeconds(updatedDevice.getWarmUpTimeSeconds());
+        
+        // Экономические показатели
+        existingDevice.setReplacementCost(updatedDevice.getReplacementCost());
+        existingDevice.setRepairCost(updatedDevice.getRepairCost());
+        
+        // Энергопотребление и защита
+        existingDevice.setPowerConsumptionWatts(updatedDevice.getPowerConsumptionWatts());
+        existingDevice.setHeatGenerationWatts(updatedDevice.getHeatGenerationWatts());
+        existingDevice.setIpRating(updatedDevice.getIpRating());
+        existingDevice.setOperatingHumidityMax(updatedDevice.getOperatingHumidityMax());
+        existingDevice.setNeedsCooling(updatedDevice.getNeedsCooling());
+        existingDevice.setHasRedundantPower(updatedDevice.getHasRedundantPower());
+        
         existingDevice.setDescription(updatedDevice.getDescription());
         existingDevice.setIconUrl(updatedDevice.getIconUrl());
         existingDevice.setIsActive(updatedDevice.getIsActive());

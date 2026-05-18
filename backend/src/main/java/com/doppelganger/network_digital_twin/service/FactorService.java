@@ -1,4 +1,3 @@
-// backend/src/main/java/com/doppelganger/network_digital_twin/service/FactorService.java
 package com.doppelganger.network_digital_twin.service;
 
 import com.doppelganger.network_digital_twin.entity.FactorNode;
@@ -41,12 +40,28 @@ public class FactorService {
         return factorNodeRepository.findByFactorType(type);
     }
     
+    public List<FactorNode> getActiveFactors() {
+        log.debug("Fetching active factors");
+        return factorNodeRepository.findByIsActiveTrue();
+    }
+    
+    public List<FactorNode> getFactorsByPriority(Integer minPriority) {
+        log.debug("Fetching factors with priority >= {}", minPriority);
+        return factorNodeRepository.findByPriorityGreaterThanEqual(minPriority);
+    }
+    
     @Transactional
     public FactorNode createFactor(FactorNode factor) {
         log.info("Creating factor: {}", factor.getName());
         
+        // Установка значений по умолчанию
         if (factor.getIsActive() == null) factor.setIsActive(true);
         if (factor.getFactorRadius() == null) factor.setFactorRadius(10.0);
+        if (factor.getChangeRatePerSecond() == null) factor.setChangeRatePerSecond(0.0);
+        if (factor.getValueChangePattern() == null) factor.setValueChangePattern("NONE");
+        if (factor.getFalloffType() == null) factor.setFalloffType("NONE");
+        if (factor.getFalloffExponent() == null) factor.setFalloffExponent(2.0);
+        if (factor.getPriority() == null) factor.setPriority(5);
         
         return factorNodeRepository.save(factor);
     }
@@ -54,9 +69,7 @@ public class FactorService {
     @Transactional
     public FactorNode createFactorInSchema(String schemaId, FactorNode factor) {
         log.info("Creating factor in schema: {}", schemaId);
-        // Временно устанавливаем schemaId через отдельный метод
-        // В реальности нужно передавать schema через сервис схем
-        factor.setSchema(null); // TODO: Загрузить Schema по ID
+        // TODO: Загрузить Schema по ID и установить
         return createFactor(factor);
     }
     
@@ -66,6 +79,7 @@ public class FactorService {
         
         FactorNode factor = getFactorById(id);
         
+        // Основные поля
         if (updatedFactor.getName() != null) factor.setName(updatedFactor.getName());
         if (updatedFactor.getCustomName() != null) factor.setCustomName(updatedFactor.getCustomName());
         if (updatedFactor.getFactorType() != null) factor.setFactorType(updatedFactor.getFactorType());
@@ -77,6 +91,29 @@ public class FactorService {
         if (updatedFactor.getIsActive() != null) factor.setIsActive(updatedFactor.getIsActive());
         if (updatedFactor.getDescription() != null) factor.setDescription(updatedFactor.getDescription());
         
+        // Динамические поля
+        if (updatedFactor.getChangeRatePerSecond() != null) factor.setChangeRatePerSecond(updatedFactor.getChangeRatePerSecond());
+        if (updatedFactor.getMinValue() != null) factor.setMinValue(updatedFactor.getMinValue());
+        if (updatedFactor.getMaxValue() != null) factor.setMaxValue(updatedFactor.getMaxValue());
+        if (updatedFactor.getValueChangePattern() != null) factor.setValueChangePattern(updatedFactor.getValueChangePattern());
+        if (updatedFactor.getFrequencyHz() != null) factor.setFrequencyHz(updatedFactor.getFrequencyHz());
+        
+        // Временные характеристики
+        if (updatedFactor.getStartTimeSeconds() != null) factor.setStartTimeSeconds(updatedFactor.getStartTimeSeconds());
+        if (updatedFactor.getDurationSeconds() != null) factor.setDurationSeconds(updatedFactor.getDurationSeconds());
+        
+        // Пространственное распределение
+        if (updatedFactor.getFalloffType() != null) factor.setFalloffType(updatedFactor.getFalloffType());
+        if (updatedFactor.getFalloffExponent() != null) factor.setFalloffExponent(updatedFactor.getFalloffExponent());
+        
+        // Пороги
+        if (updatedFactor.getWarningThreshold() != null) factor.setWarningThreshold(updatedFactor.getWarningThreshold());
+        if (updatedFactor.getCriticalThreshold() != null) factor.setCriticalThreshold(updatedFactor.getCriticalThreshold());
+        if (updatedFactor.getFailureThreshold() != null) factor.setFailureThreshold(updatedFactor.getFailureThreshold());
+        
+        // Приоритет
+        if (updatedFactor.getPriority() != null) factor.setPriority(updatedFactor.getPriority());
+        
         return factorNodeRepository.save(factor);
     }
     
@@ -84,5 +121,10 @@ public class FactorService {
     public void deleteFactor(String id) {
         log.info("Deleting factor: {}", id);
         factorNodeRepository.deleteById(id);
+    }
+
+    public List<FactorNode> getDynamicFactors() {
+        log.debug("Fetching dynamic factors (non-NONE pattern)");
+        return factorNodeRepository.findByValueChangePatternNot("NONE");
     }
 }

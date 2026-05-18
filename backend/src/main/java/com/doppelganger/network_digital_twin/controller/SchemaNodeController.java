@@ -160,4 +160,19 @@ public class SchemaNodeController {
         schemaNodeService.deleteAllNodesBySchemaId(schemaId);
         return ResponseEntity.noContent().build();
     }
+
+    // POST /api/schemas/{schemaId}/nodes/factors/{factorId} - добавить фактор
+    @PostMapping("/factors/{factorId}")
+    public ResponseEntity<SchemaNode> addFactorToSchema(
+            @PathVariable String schemaId,
+            @PathVariable String factorId,
+            @RequestBody Map<String, Object> request) {
+        
+        Double posX = request.containsKey("positionX") ? ((Number) request.get("positionX")).doubleValue() : 0.0;
+        Double posY = request.containsKey("positionY") ? ((Number) request.get("positionY")).doubleValue() : 0.0;
+        String customName = request.containsKey("customName") ? (String) request.get("customName") : null;
+        
+        SchemaNode node = schemaNodeService.addFactorToSchema(schemaId, factorId, posX, posY, customName);
+        return ResponseEntity.status(HttpStatus.CREATED).body(node);
+    }
 }

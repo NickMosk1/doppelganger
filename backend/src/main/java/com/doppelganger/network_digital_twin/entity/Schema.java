@@ -25,18 +25,13 @@ public class Schema {
     @Column(length = 500)
     private String description;
     
-    // Владелец схемы (обязательно)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
     
-    // Публичная ли схема (можно использовать другим пользователям)
     private Boolean isPublic = false;
-    
-    // Количество использований в чужих схемах
     private Integer usageCount = 0;
     
-    // Родительская схема (может принадлежать другому пользователю)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_schema_id")
     private Schema parentSchema;
@@ -56,13 +51,22 @@ public class Schema {
     private String path;
     private Integer depth = 0;
     
+    // ============ ПРОМЫШЛЕННЫЕ КОЭФФИЦИЕНТЫ СХЕМЫ (глобальные) ============
     private Double temperatureOffset = 0.0;
     private Double emiOffset = 0.0;
     private Double vibrationOffset = 0.0;
     private Double dustOffset = 0.0;
     
+    // ============ ГЛОБАЛЬНЫЕ ПАРАМЕТРЫ СИМУЛЯЦИИ ============
+    @Column(name = "default_duration_seconds")
+    private Integer defaultDurationSeconds = 60;
+    
+    @Column(name = "simulation_step_seconds")
+    private Integer simulationStepSeconds = 5;
+    
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalDateTime lastOpenedAt;
     
     @PrePersist
     protected void onCreate() {
@@ -72,25 +76,17 @@ public class Schema {
         if (path == null && name != null) path = "/" + name;
         if (isPublic == null) isPublic = false;
         if (usageCount == null) usageCount = 0;
+        if (defaultDurationSeconds == null) defaultDurationSeconds = 60;
+        if (simulationStepSeconds == null) simulationStepSeconds = 5;
     }
     
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
-
-    private LocalDateTime lastOpenedAt;
-
-    // Добавьте геттер и сеттер
-    public LocalDateTime getLastOpenedAt() {
-        return lastOpenedAt;
-    }
-
-    public void setLastOpenedAt(LocalDateTime lastOpenedAt) {
-        this.lastOpenedAt = lastOpenedAt;
-    }
     
-    // Getters and Setters
+    // ============ GETTERS AND SETTERS ============
+    
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
     
@@ -139,11 +135,20 @@ public class Schema {
     public Double getDustOffset() { return dustOffset; }
     public void setDustOffset(Double dustOffset) { this.dustOffset = dustOffset; }
     
+    public Integer getDefaultDurationSeconds() { return defaultDurationSeconds; }
+    public void setDefaultDurationSeconds(Integer defaultDurationSeconds) { this.defaultDurationSeconds = defaultDurationSeconds; }
+    
+    public Integer getSimulationStepSeconds() { return simulationStepSeconds; }
+    public void setSimulationStepSeconds(Integer simulationStepSeconds) { this.simulationStepSeconds = simulationStepSeconds; }
+    
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    
+    public LocalDateTime getLastOpenedAt() { return lastOpenedAt; }
+    public void setLastOpenedAt(LocalDateTime lastOpenedAt) { this.lastOpenedAt = lastOpenedAt; }
     
     public String getFullPath() {
         return path != null ? path : "/" + name;
