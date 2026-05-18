@@ -3,6 +3,7 @@ import { observer } from "mobx-react-lite";
 import styled from "styled-components";
 import { Port, PortType } from "../../../../types";
 import { colors } from "../../../../theme";
+import { formatPortSpeed } from "../../utils";
 
 const DeviceNodeContainer = styled.div<{ selected: boolean; isStartPoint?: boolean; isEndPoint?: boolean }>`
   padding: 12px;
@@ -14,7 +15,7 @@ const DeviceNodeContainer = styled.div<{ selected: boolean; isStartPoint?: boole
     return '#e2e8f0';
   }};
   border-radius: 12px;
-  min-width: 160px;
+  min-width: 220px;
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -125,18 +126,6 @@ const PortSpeed = styled.span`
   color: #94a3b8;
 `;
 
-const StatusIndicator = styled.div<{ status?: string }>`
-  font-size: 9px;
-  margin-top: 8px;
-  padding-top: 6px;
-  color: ${props => 
-    props.status === 'OPERATIONAL' ? '#10b981' : 
-    props.status === 'DEGRADED' ? '#f59e0b' : 
-    props.status === 'FAILED' ? '#ef4444' : '#94a3b8'
-  };
-  text-align: center;
-`;
-
 const FactorHandle = styled(Handle)`
   position: absolute;
   bottom: -10px;
@@ -220,7 +209,7 @@ const DeviceNode: React.FC<DeviceNodeProps> = observer(({ data, selected }) => {
             >
               <PortDot portType={port.type} isConnected={port.isConnected} />
               <PortName>{port.name}</PortName>
-              {port.speed && <PortSpeed>{port.speed}M</PortSpeed>}
+              {port.speed && <PortSpeed title="Мегабит в секунду">{formatPortSpeed(port.speed)}</PortSpeed>}
               <Handle
                 type="source"
                 position={Position.Left}
@@ -252,7 +241,7 @@ const DeviceNode: React.FC<DeviceNodeProps> = observer(({ data, selected }) => {
             >
               <PortDot portType={port.type} isConnected={port.isConnected} />
               <PortName>{port.name}</PortName>
-              {port.speed && <PortSpeed>{port.speed}M</PortSpeed>}
+              {port.speed && <PortSpeed title="Мегабит в секунду">{formatPortSpeed(port.speed)}</PortSpeed>}
               <Handle
                 type="target"
                 position={Position.Right}

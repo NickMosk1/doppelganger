@@ -134,8 +134,6 @@ const SimulationModal: React.FC<SimulationModalProps> = ({ isOpen, onClose, onSu
 
   const startNodeId = editorStore.startPointId;
   const endNodeId = editorStore.endPointId;
-  const startNode = editorStore.getNodeById(startNodeId || '');
-  const endNode = editorStore.getNodeById(endNodeId || '');
 
   // Находим путь между стартом и финишем
   useEffect(() => {
@@ -272,26 +270,6 @@ const SimulationModal: React.FC<SimulationModalProps> = ({ isOpen, onClose, onSu
           </div>
         )}
       </PathContainer>
-
-      <SectionTitle>📊 Статистика схемы</SectionTitle>
-      <StatsGrid>
-        <StatCard>
-          <StatValue>{stats?.devicesCount || 0}</StatValue>
-          <StatLabel>Устройств</StatLabel>
-        </StatCard>
-        <StatCard>
-          <StatValue>{stats?.cablesCount || 0}</StatValue>
-          <StatLabel>Кабелей</StatLabel>
-        </StatCard>
-        <StatCard>
-          <StatValue>{stats?.factorsCount || 0}</StatValue>
-          <StatLabel>Факторов</StatLabel>
-        </StatCard>
-        <StatCard>
-          <StatValue>{path.length - 1 || 0}</StatValue>
-          <StatLabel>Хопов</StatLabel>
-        </StatCard>
-      </StatsGrid>
 
       <SectionTitle>🏭 Активные факторы</SectionTitle>
       <FactorList>

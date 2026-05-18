@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 import ReactFlow, {
   Controls,
   MiniMap,
@@ -40,7 +40,7 @@ interface NetworkCanvasProps {
   schemaId: string;
 }
 
-const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ schemaId }) => {
+const CanvasContent: React.FC<NetworkCanvasProps> = observer(({ }) => {
   const { editorStore, draftStore, toastStore } = useStores();
   const { setCenter, setViewport } = useReactFlow();
   const viewport = useViewport();

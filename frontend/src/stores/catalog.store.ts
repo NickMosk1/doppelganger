@@ -1,20 +1,20 @@
 import { makeAutoObservable } from "mobx";
-import { 
-  CatalogDevice, 
-  CatalogCable, 
-  CatalogSubSchema, 
+import {
+  CatalogDevice,
+  CatalogCable,
+  CatalogSubSchema,
   CatalogFactor,
-  DeviceCategories, 
+  DeviceCategories,
   CableTypes,
-  FactorTypes 
+  FactorTypes
 } from "../shared/types/catalog";
 
 class CatalogStore {
-  
+
   private _devices: CatalogDevice[] = [];
   private _cables: CatalogCable[] = [];
   private _publicSchemas: CatalogSubSchema[] = [];
-  private _factors: CatalogFactor[] = [];  // Добавляем факторы
+  private _factors: CatalogFactor[] = [];
   private _searchQuery: string = "";
   private _isLoading: boolean = false;
 
@@ -23,10 +23,10 @@ class CatalogStore {
   }
 
   // ============ GETTERS ============
-  
+
   get devices() {
     if (!this._searchQuery) return this._devices;
-    return this._devices.filter(d => 
+    return this._devices.filter(d =>
       d.name.toLowerCase().includes(this._searchQuery.toLowerCase()) ||
       d.manufacturer?.toLowerCase().includes(this._searchQuery.toLowerCase())
     );
@@ -34,7 +34,7 @@ class CatalogStore {
 
   get cables() {
     if (!this._searchQuery) return this._cables;
-    return this._cables.filter(c => 
+    return this._cables.filter(c =>
       c.name.toLowerCase().includes(this._searchQuery.toLowerCase())
     );
   }
@@ -61,7 +61,6 @@ class CatalogStore {
     return this._isLoading;
   }
 
-  // Группировка факторов по типам
   get groupedFactors() {
     const groups: Record<FactorTypes, CatalogFactor[]> = {
       [FactorTypes.TEMPERATURE]: [],
@@ -137,7 +136,7 @@ class CatalogStore {
     this._isLoading = loading;
   }
 
-  // ============ ACTIONS (синхронные) ============
+  // ============ ACTIONS ============
   
   addDeviceSync(device: CatalogDevice) {
     this._devices.push(device);

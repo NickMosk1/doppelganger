@@ -71,13 +71,13 @@ const LeftPanel: React.FC = observer(() => {
           catalogService.getDevices(),
           catalogService.getCables(),
           catalogService.getPublicSchemas(),
-          catalogService.getFactors(),  // Добавляем загрузку факторов
+          catalogService.getFactors(),
         ]);
         
         catalogStore.setDevices(devices);
         catalogStore.setCables(cables);
         catalogStore.setPublicSchemas(publicSchemas);
-        catalogStore.setFactors(factors);  // Сохраняем факторы в стор
+        catalogStore.setFactors(factors);
       } catch (err) {
         console.error("Failed to load catalog:", err);
         setError("Не удалось загрузить каталог");
@@ -112,7 +112,6 @@ const LeftPanel: React.FC = observer(() => {
 
   const handleAddFactor = async (factor: any) => {
     try {
-      // Получаем текущий schemaId из editorStore
       const schemaId = editorStore.currentSchemaId;
       if (!schemaId || schemaId.startsWith("draft-")) {
         console.error("Cannot add factor: schema not saved yet");
@@ -131,6 +130,7 @@ const LeftPanel: React.FC = observer(() => {
     }
   };
 
+  // Обновленный обработчик для создания узлов
   const handleItemClick = (item: any, sourceType: "device" | "cable" | "factor" | "subschema") => {
     if (sourceType === "cable") {
       const position = getRandomPosition();
@@ -142,8 +142,28 @@ const LeftPanel: React.FC = observer(() => {
         customName: item.name,
         position: position,
         icon: item.icon || "🔌",
-        lengthM: item.maxLengthM || 10,
+        lengthM: 10,
         cableType: item.type,
+        bandwidthMbps: item.bandwidthMbps || 1000,
+        // Новые поля кабеля
+        propagationSpeed: item.propagationSpeed,
+        bendingRadiusMm: item.bendingRadiusMm,
+        tensileStrengthN: item.tensileStrengthN,
+        operatingTensionMaxN: item.operatingTensionMaxN,
+        impedanceOhms: item.impedanceOhms,
+        coreDiameterUm: item.coreDiameterUm,
+        capacitancePerKmNf: item.capacitancePerKmNf,
+        resistancePerKmOhms: item.resistancePerKmOhms,
+        maxFrequencyMhz: item.maxFrequencyMhz,
+        signalToNoiseRatioDb: item.signalToNoiseRatioDb,
+        immunityRating: item.immunityRating,
+        temperatureRating: item.temperatureRating,
+        shieldingType: item.shieldingType,
+        oilResistance: item.oilResistance,
+        uvResistance: item.uvResistance,
+        chemicalResistance: item.chemicalResistance,
+        expectedLifetimeYears: item.expectedLifetimeYears,
+        degradationRatePerYear: item.degradationRatePerYear,
         isEnabled: true,
         status: NodeStatus.OPERATIONAL,
         ports: [
@@ -170,6 +190,20 @@ const LeftPanel: React.FC = observer(() => {
         factorValue: item.factorValue,
         factorUnit: item.factorUnit,
         factorRadius: item.factorRadius,
+        // Динамические поля фактора
+        changeRatePerSecond: item.changeRatePerSecond,
+        minValue: item.minValue,
+        maxValue: item.maxValue,
+        valueChangePattern: item.valueChangePattern,
+        frequencyHz: item.frequencyHz,
+        startTimeSeconds: item.startTimeSeconds,
+        durationSeconds: item.durationSeconds,
+        falloffType: item.falloffType,
+        falloffExponent: item.falloffExponent,
+        warningThreshold: item.warningThreshold,
+        criticalThreshold: item.criticalThreshold,
+        failureThreshold: item.failureThreshold,
+        priority: item.priority,
         isEnabled: true,
         status: NodeStatus.OPERATIONAL,
       };
@@ -181,10 +215,10 @@ const LeftPanel: React.FC = observer(() => {
     const nodeType = sourceType === "device" ? EditorNodes.DEVICE : EditorNodes.SUBSCHEMA;
     const position = getRandomPosition();
     
-    const ports = nodeType === EditorNodes.DEVICE ? generateDefaultPorts(item.type) : undefined;
+    const ports = nodeType === EditorNodes.DEVICE ? generateDefaultPorts(item.type, item.maxThroughputMbps, item.portCount) : undefined;
     const icon = nodeType === EditorNodes.DEVICE ? getDeviceIcon(item.type) : "📁";
 
-    const newNode = {
+    const newNode: any = {
       id: `device-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
       type: nodeType,
       deviceId: sourceType === "device" ? item.id : undefined,
@@ -192,8 +226,6 @@ const LeftPanel: React.FC = observer(() => {
       name: item.name,
       customName: item.name,
       position: position,
-      baseLatencyMs: item.baseLatencyMs || 1,
-      maxThroughputMbps: item.maxThroughputMbps || 100,
       icon: icon,
       ports: ports,
       isEnabled: true,
@@ -203,6 +235,38 @@ const LeftPanel: React.FC = observer(() => {
       vibrationOffset: 0,
       dustOffset: 0,
     };
+
+    // Добавляем поля устройства
+    if (sourceType === "device") {
+      newNode.baseLatencyMs = item.baseLatencyMs || 1;
+      newNode.maxThroughputMbps = item.maxThroughputMbps || 100;
+      newNode.manufacturer = item.manufacturer;
+      newNode.portCount = item.portCount;
+      // Промышленные коэффициенты
+      newNode.tempCoefficient = item.tempCoefficient || 1.0;
+      newNode.emiCoefficient = item.emiCoefficient || 1.0;
+      newNode.vibrationCoefficient = item.vibrationCoefficient || 1.0;
+      newNode.dustCoefficient = item.dustCoefficient || 1.0;
+      // Допустимые диапазоны
+      newNode.maxOperatingTemp = item.maxOperatingTemp;
+      newNode.minOperatingTemp = item.minOperatingTemp;
+      newNode.maxEmiTolerance = item.maxEmiTolerance;
+      newNode.maxVibrationTolerance = item.maxVibrationTolerance;
+      // Надежность
+      newNode.mtbfHours = item.mtbfHours;
+      newNode.mttrMinutes = item.mttrMinutes;
+      newNode.warmUpTimeSeconds = item.warmUpTimeSeconds;
+      // Экономика
+      newNode.replacementCost = item.replacementCost;
+      newNode.repairCost = item.repairCost;
+      // Энергопотребление
+      newNode.powerConsumptionWatts = item.powerConsumptionWatts;
+      newNode.heatGenerationWatts = item.heatGenerationWatts;
+      newNode.ipRating = item.ipRating;
+      newNode.operatingHumidityMax = item.operatingHumidityMax;
+      newNode.needsCooling = item.needsCooling;
+      newNode.hasRedundantPower = item.hasRedundantPower;
+    }
     
     editorStore.addNode(newNode);
   };
@@ -248,6 +312,9 @@ const LeftPanel: React.FC = observer(() => {
     e.stopPropagation();
     startResize(e);
   }, [startResize]);
+
+  // Остальной код (разметка) остается без изменений...
+  // (return с JSX не меняется)
 
   if (isLoading) {
     return (

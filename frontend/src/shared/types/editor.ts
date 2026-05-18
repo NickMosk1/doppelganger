@@ -56,7 +56,6 @@ export interface CableInfo {
   icon?: string;
 }
 
-// Типы связей
 export enum ConnectionType {
   CABLE_DEVICE = "CABLE_DEVICE",
   FACTOR_ELEMENT = "FACTOR_ELEMENT",
@@ -95,6 +94,7 @@ export interface EditorEdge {
   isActive?: boolean;
 }
 
+// ============ EDITOR NODE ============
 // src/shared/types/editor.ts
 
 export interface EditorNode {
@@ -109,8 +109,10 @@ export interface EditorNode {
   // Статус и состояние
   status?: NodeStatus;
   isEnabled?: boolean;
+
+  deviceType?: string;
   
-  // Для DEVICE
+  // ============ ДЛЯ DEVICE ============
   deviceId?: string;
   device?: {
     id: string;
@@ -119,48 +121,154 @@ export interface EditorNode {
     manufacturer: string;
     baseLatencyMs?: number;
     maxThroughputMbps?: number;
+    portCount?: number;
+    tempCoefficient?: number;
+    emiCoefficient?: number;
+    vibrationCoefficient?: number;
+    dustCoefficient?: number;
+    maxOperatingTemp?: number;
+    minOperatingTemp?: number;
+    maxEmiTolerance?: number;
+    maxVibrationTolerance?: number;
+    mtbfHours?: number;
+    mttrMinutes?: number;
+    warmUpTimeSeconds?: number;
+    replacementCost?: number;
+    repairCost?: number;
+    powerConsumptionWatts?: number;
+    heatGenerationWatts?: number;
+    ipRating?: string;
+    operatingHumidityMax?: number;
+    needsCooling?: boolean;
+    hasRedundantPower?: boolean;
   };
   ports?: Port[];
+  
+  // Переопределяемые параметры
   baseLatencyMs?: number;
   maxThroughputMbps?: number;
   manufacturer?: string;
+  portCount?: number;
   
-  // Для CABLE
+  // Промышленные коэффициенты
+  tempCoefficient?: number;
+  emiCoefficient?: number;
+  vibrationCoefficient?: number;
+  dustCoefficient?: number;
+  
+  // Допустимые диапазоны
+  maxOperatingTemp?: number;
+  minOperatingTemp?: number;
+  maxEmiTolerance?: number;
+  maxVibrationTolerance?: number;
+  
+  // Надежность
+  mtbfHours?: number;
+  mttrMinutes?: number;
+  warmUpTimeSeconds?: number;
+  
+  // Экономические показатели
+  replacementCost?: number;
+  repairCost?: number;
+  
+  // Энергопотребление и защита
+  powerConsumptionWatts?: number;
+  heatGenerationWatts?: number;
+  ipRating?: string;
+  operatingHumidityMax?: number;
+  needsCooling?: boolean;
+  hasRedundantPower?: boolean;
+  
+  // ============ ДЛЯ CABLE ============
   lengthM?: number;
   cableLengthM?: number;
   cableType?: string;
   bandwidthMbps?: number;
   
-  // Для FACTOR
+  // 👇 ДОБАВИТЬ ЭТИ ПОЛЯ
+  maxLengthM?: number;              // максимальная длина
+  attenuationDbPerKm?: number;      // затухание дБ/км
+  propagationSpeed?: number;        // скорость распространения
+  bendingRadiusMm?: number;         // мин. радиус изгиба
+  tensileStrengthN?: number;        // прочность на разрыв
+  operatingTensionMaxN?: number;    // макс. рабочее натяжение
+  
+  // Электрические/оптические параметры
+  impedanceOhms?: number;
+  coreDiameterUm?: number;
+  capacitancePerKmNf?: number;
+  resistancePerKmOhms?: number;
+  
+  // Частотные характеристики
+  maxFrequencyMhz?: number;
+  signalToNoiseRatioDb?: number;
+  
+  // Промышленная устойчивость кабеля
+  immunityRating?: number;
+  temperatureRating?: number;
+  shieldingType?: number;
+  oilResistance?: boolean;
+  uvResistance?: boolean;
+  chemicalResistance?: string;
+  
+  // Срок службы кабеля
+  expectedLifetimeYears?: number;
+  degradationRatePerYear?: number;
+  
+  // ============ ДЛЯ FACTOR ============
   factor?: {
     factorType: string;
     factorValue: number;
     factorUnit: string;
     factorRadius: number;
+    changeRatePerSecond?: number;
+    minValue?: number;
+    maxValue?: number;
+    valueChangePattern?: string;
+    frequencyHz?: number;
+    startTimeSeconds?: number;
+    durationSeconds?: number;
+    falloffType?: string;
+    falloffExponent?: number;
+    warningThreshold?: number;
+    criticalThreshold?: number;
+    failureThreshold?: number;
+    priority?: number;
   };
-
-  deviceType?: string;
   
-  // 🔧 ДОБАВИТЬ: Прямые поля для FACTOR (для удобства работы)
+  // Прямые поля для FACTOR
   factorType?: string;
   factorValue?: number;
   factorUnit?: string;
   factorRadius?: number;
+  changeRatePerSecond?: number;
+  minValue?: number;
+  maxValue?: number;
+  valueChangePattern?: string;
+  frequencyHz?: number;
+  startTimeSeconds?: number;
+  durationSeconds?: number;
+  falloffType?: string;
+  falloffExponent?: number;
+  warningThreshold?: number;
+  criticalThreshold?: number;
+  failureThreshold?: number;
+  priority?: number;
   
-  // Для SUBSCHEMA
+  // ============ ДЛЯ SUBSCHEMA ============
   schemaId?: string;
   
-  // Промышленные смещения (для всех типов)
+  // ============ ПРОМЫШЛЕННЫЕ СМЕЩЕНИЯ ============
   temperatureOffset?: number;
   emiOffset?: number;
   vibrationOffset?: number;
   dustOffset?: number;
   
-  // Визуальные
+  // ============ ВИЗУАЛЬНЫЕ ============
   icon?: string;
   color?: string;
   
-  // Флаги
+  // ============ ФЛАГИ ============
   isCustom?: boolean;
 }
 

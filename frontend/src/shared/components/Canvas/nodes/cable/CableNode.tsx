@@ -39,7 +39,7 @@ const CableLength = styled.span`
 `;
 
 // Handle для подключения факторов (снизу)
-const FactorHandle = styled(Handle)`
+const FactorHandleBottom = styled(Handle)`
   position: absolute;
   bottom: -10px;
   left: 50%;
@@ -58,8 +58,8 @@ const FactorHandle = styled(Handle)`
   }
 `;
 
-// Handle для подключения факторов (снизу)
-const TopFactorHandle = styled(Handle)`
+// Handle для подключения факторов (сверху)
+const FactorHandleTop = styled(Handle)`
   position: absolute;
   top: -10px;
   left: 50%;
@@ -91,9 +91,9 @@ interface CableNodeProps {
 const CableNode: React.FC<CableNodeProps> = observer(({ data, selected }) => {
   return (
     <CableNodeContainer $selected={selected}>
-      {/* Левый порт (вход) */}
+      {/* 🔧 Левый порт — ИСТОЧНИК (source) */}
       <Handle
-        type="target"
+        type="source"
         position={Position.Left}
         id="left"
         style={{
@@ -111,9 +111,9 @@ const CableNode: React.FC<CableNodeProps> = observer(({ data, selected }) => {
       <CableName>{data.name}</CableName>
       <CableLength>{data.lengthM}м</CableLength>
       
-      {/* Правый порт (выход) */}
+      {/* 🔧 Правый порт — ЦЕЛЬ (target) */}
       <Handle
-        type="source"
+        type="target"
         position={Position.Right}
         id="right"
         style={{
@@ -127,15 +127,15 @@ const CableNode: React.FC<CableNodeProps> = observer(({ data, selected }) => {
         }}
       />
 
-      {/* Handle для подключения факторов (снизу) */}
-      <FactorHandle
+      {/* Handle для подключения факторов (снизу) — целевой */}
+      <FactorHandleBottom
         type="target"
         position={Position.Bottom}
         id="factor-connection-bottom"
       />
 
-      {/* Handle для подключения факторов (сверху) */}
-      <TopFactorHandle
+      {/* Handle для подключения факторов (сверху) — целевой */}
+      <FactorHandleTop
         type="target"
         position={Position.Top}
         id="factor-connection-top"

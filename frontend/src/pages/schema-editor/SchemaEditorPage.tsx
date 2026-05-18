@@ -101,8 +101,30 @@ const SchemaEditorPage: React.FC = observer(() => {
                 manufacturer: node.device.manufacturer,
                 baseLatencyMs: node.device.baseLatencyMs || 0,
                 maxThroughputMbps: node.device.maxThroughputMbps || 0,
-                device: node.device, // сохраняем оригинальный объект
-                ports: generateDefaultPorts(node.device.type),
+                device: {
+                  ...node.device,
+                  // Копируем все новые поля из device
+                  tempCoefficient: node.device.tempCoefficient,
+                  emiCoefficient: node.device.emiCoefficient,
+                  vibrationCoefficient: node.device.vibrationCoefficient,
+                  dustCoefficient: node.device.dustCoefficient,
+                  maxOperatingTemp: node.device.maxOperatingTemp,
+                  minOperatingTemp: node.device.minOperatingTemp,
+                  maxEmiTolerance: node.device.maxEmiTolerance,
+                  maxVibrationTolerance: node.device.maxVibrationTolerance,
+                  mtbfHours: node.device.mtbfHours,
+                  mttrMinutes: node.device.mttrMinutes,
+                  warmUpTimeSeconds: node.device.warmUpTimeSeconds,
+                  replacementCost: node.device.replacementCost,
+                  repairCost: node.device.repairCost,
+                  powerConsumptionWatts: node.device.powerConsumptionWatts,
+                  heatGenerationWatts: node.device.heatGenerationWatts,
+                  ipRating: node.device.ipRating,
+                  operatingHumidityMax: node.device.operatingHumidityMax,
+                  needsCooling: node.device.needsCooling,
+                  hasRedundantPower: node.device.hasRedundantPower,
+                },
+                ports: generateDefaultPorts(node.device.type, node.device.maxThroughputMbps, node.device.portCount),
                 icon: getDeviceIcon(node.device.type),
               };
             }
@@ -130,6 +152,20 @@ const SchemaEditorPage: React.FC = observer(() => {
                 factorValue: node.factor.factorValue,
                 factorUnit: node.factor.factorUnit,
                 factorRadius: node.factor.factorRadius,
+                // Динамические поля фактора
+                changeRatePerSecond: node.factor.changeRatePerSecond,
+                minValue: node.factor.minValue,
+                maxValue: node.factor.maxValue,
+                valueChangePattern: node.factor.valueChangePattern,
+                frequencyHz: node.factor.frequencyHz,
+                startTimeSeconds: node.factor.startTimeSeconds,
+                durationSeconds: node.factor.durationSeconds,
+                falloffType: node.factor.falloffType,
+                falloffExponent: node.factor.falloffExponent,
+                warningThreshold: node.factor.warningThreshold,
+                criticalThreshold: node.factor.criticalThreshold,
+                failureThreshold: node.factor.failureThreshold,
+                priority: node.factor.priority,
                 factor: node.factor,
                 icon: getFactorIcon(node.factor.factorType),
               };
@@ -183,13 +219,11 @@ const SchemaEditorPage: React.FC = observer(() => {
     const hasStartAndEnd = editorStore.startPointId && editorStore.endPointId;
     if (!hasStartAndEnd) return false;
     
-    // Проверяем, есть ли путь между точками
     const hasPath = checkPathBetweenNodes(editorStore.startPointId!, editorStore.endPointId!);
     return hasPath;
   };
 
   const checkPathBetweenNodes = (startId: string, endId: string): boolean => {
-    // BFS для поиска пути
     const adjacencyList = new Map<string, string[]>();
     
     editorStore.edges.forEach(edge => {
@@ -217,7 +251,6 @@ const SchemaEditorPage: React.FC = observer(() => {
     return false;
   };
 
-  // Обработчик открытия модалки
   const handleOpenSimulation = () => {
     if (!canRunSimulation()) {
       alert("Укажите точки старта и финиша, соединённые кабелями");
@@ -226,9 +259,7 @@ const SchemaEditorPage: React.FC = observer(() => {
     setIsSimulationModalOpen(true);
   };
 
-  // Обработчик успешной симуляции
   const handleSimulationSuccess = () => {
-    // Переход на страницу истории
     navigate(`/history/${id}`);
   };
 
@@ -267,26 +298,114 @@ const SchemaEditorPage: React.FC = observer(() => {
             id: node.id,
             type: node.type,
             name: node.name,
-            isFactor: node.type === "FACTOR",
-            factorType: node.factorType,
           });
           
-          return {
+          // Базовые поля для всех узлов
+          const baseNodeData: any = {
             id: node.id,
             type: node.type,
-            deviceId: node.deviceId,
             name: node.name,
             customName: node.customName,
             positionX: node.position.x,
             positionY: node.position.y,
-            lengthM: node.lengthM,
-            cableType: node.cableType,
-            bandwidthMbps: node.bandwidthMbps,
-            factorType: node.factorType,
-            factorValue: node.factorValue,
-            factorUnit: node.factorUnit,
-            factorRadius: node.factorRadius,
+            isEnabled: node.isEnabled,
           };
+          
+          // Для DEVICE
+          if (node.type === EditorNodes.DEVICE) {
+            return {
+              ...baseNodeData,
+              deviceId: node.deviceId,
+              // Все новые поля устройства
+              baseLatencyMs: node.baseLatencyMs,
+              maxThroughputMbps: node.maxThroughputMbps,
+              manufacturer: node.manufacturer,
+              tempCoefficient: node.tempCoefficient,
+              emiCoefficient: node.emiCoefficient,
+              vibrationCoefficient: node.vibrationCoefficient,
+              dustCoefficient: node.dustCoefficient,
+              maxOperatingTemp: node.maxOperatingTemp,
+              minOperatingTemp: node.minOperatingTemp,
+              maxEmiTolerance: node.maxEmiTolerance,
+              maxVibrationTolerance: node.maxVibrationTolerance,
+              mtbfHours: node.mtbfHours,
+              mttrMinutes: node.mttrMinutes,
+              warmUpTimeSeconds: node.warmUpTimeSeconds,
+              replacementCost: node.replacementCost,
+              repairCost: node.repairCost,
+              powerConsumptionWatts: node.powerConsumptionWatts,
+              heatGenerationWatts: node.heatGenerationWatts,
+              ipRating: node.ipRating,
+              operatingHumidityMax: node.operatingHumidityMax,
+              needsCooling: node.needsCooling,
+              hasRedundantPower: node.hasRedundantPower,
+            };
+          }
+          
+          // Для CABLE
+          if (node.type === EditorNodes.CABLE) {
+            return {
+              ...baseNodeData,
+              lengthM: node.lengthM,
+              cableLengthM: node.cableLengthM,
+              cableType: node.cableType,
+              bandwidthMbps: node.bandwidthMbps,
+              // Новые поля кабеля
+              propagationSpeed: node.propagationSpeed,
+              bendingRadiusMm: node.bendingRadiusMm,
+              tensileStrengthN: node.tensileStrengthN,
+              operatingTensionMaxN: node.operatingTensionMaxN,
+              impedanceOhms: node.impedanceOhms,
+              coreDiameterUm: node.coreDiameterUm,
+              capacitancePerKmNf: node.capacitancePerKmNf,
+              resistancePerKmOhms: node.resistancePerKmOhms,
+              maxFrequencyMhz: node.maxFrequencyMhz,
+              signalToNoiseRatioDb: node.signalToNoiseRatioDb,
+              immunityRating: node.immunityRating,
+              temperatureRating: node.temperatureRating,
+              shieldingType: node.shieldingType,
+              oilResistance: node.oilResistance,
+              uvResistance: node.uvResistance,
+              chemicalResistance: node.chemicalResistance,
+              expectedLifetimeYears: node.expectedLifetimeYears,
+              degradationRatePerYear: node.degradationRatePerYear,
+            };
+          }
+          
+          // Для FACTOR
+          if (node.type === EditorNodes.FACTOR) {
+            return {
+              ...baseNodeData,
+              factorType: node.factorType,
+              factorValue: node.factorValue,
+              factorUnit: node.factorUnit,
+              factorRadius: node.factorRadius,
+              // Динамические поля фактора
+              changeRatePerSecond: node.changeRatePerSecond,
+              minValue: node.minValue,
+              maxValue: node.maxValue,
+              valueChangePattern: node.valueChangePattern,
+              frequencyHz: node.frequencyHz,
+              startTimeSeconds: node.startTimeSeconds,
+              durationSeconds: node.durationSeconds,
+              falloffType: node.falloffType,
+              falloffExponent: node.falloffExponent,
+              warningThreshold: node.warningThreshold,
+              criticalThreshold: node.criticalThreshold,
+              failureThreshold: node.failureThreshold,
+              priority: node.priority,
+            };
+          }
+          
+          // Для SUBSCHEMA
+          if (node.type === EditorNodes.SUBSCHEMA) {
+            return {
+              ...baseNodeData,
+              schemaId: node.schemaId,
+            };
+          }
+          
+          return baseNodeData;
         }),
         connections: editorStore.edges.map(edge => ({
           sourceNodeId: edge.sourceNodeId,
@@ -308,8 +427,8 @@ const SchemaEditorPage: React.FC = observer(() => {
         nodeIdMap = await editorService.updateFullSchema(schemaId, schemaData);
         navigate(`/editor/${schemaId}`, { replace: true });
       } else {
-        await editorService.updateSchema(id, { name: schemaName, description: schemaDescription });
-        nodeIdMap = await editorService.updateFullSchema(id, schemaData);
+        await editorService.updateSchema(id!, { name: schemaName, description: schemaDescription });
+        nodeIdMap = await editorService.updateFullSchema(id!, schemaData);
       }
       
       if (nodeIdMap) {
@@ -332,7 +451,6 @@ const SchemaEditorPage: React.FC = observer(() => {
         });
       }
       
-      // После успешного сохранения на бэке сбрасываем флаг
       draftStore.markAsSaved(schemaId ?? "");
       toastStore.showSuccess("Схема успешно сохранена!");
     } catch (error) {

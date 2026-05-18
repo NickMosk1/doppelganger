@@ -1,3 +1,5 @@
+// src/services/editor.service.ts
+
 import { SchemaFull, ValidationResult } from "../shared";
 import { api } from "../utils/api";
 import { ConnectionType } from "../shared/types";
@@ -27,6 +29,8 @@ class EditorService {
     await api.delete(`/schemas/${id}`);
   }
 
+  // ============ УЗЛЫ ============
+  
   async createDeviceNode(schemaId: string, deviceId: string, position: { x: number; y: number }, customName?: string): Promise<{ id: string }> {
     const response = await api.post(`/schemas/${schemaId}/nodes/devices/${deviceId}`, {
       positionX: position.x,
@@ -36,7 +40,6 @@ class EditorService {
     return response.data;
   }
 
-  // Новый метод для создания кабеля как узла
   async createCableNode(schemaId: string, cableNode: {
     name: string;
     customName?: string;
@@ -57,13 +60,26 @@ class EditorService {
     return response.data;
   }
 
-  // Новый метод для создания фактора как узла
   async createFactorNode(schemaId: string, factorNode: {
     factorType: string;
     name: string;
     position: { x: number; y: number };
     value: number;
     unit: string;
+    radius?: number;
+    changeRatePerSecond?: number;
+    minValue?: number;
+    maxValue?: number;
+    valueChangePattern?: string;
+    frequencyHz?: number;
+    startTimeSeconds?: number;
+    durationSeconds?: number;
+    falloffType?: string;
+    falloffExponent?: number;
+    warningThreshold?: number;
+    criticalThreshold?: number;
+    failureThreshold?: number;
+    priority?: number;
   }): Promise<{ id: string }> {
     const response = await api.post(`/schemas/${schemaId}/nodes/factors`, {
       factorType: factorNode.factorType,
@@ -72,6 +88,20 @@ class EditorService {
       positionY: factorNode.position.y,
       factorValue: factorNode.value,
       factorUnit: factorNode.unit,
+      factorRadius: factorNode.radius,
+      changeRatePerSecond: factorNode.changeRatePerSecond,
+      minValue: factorNode.minValue,
+      maxValue: factorNode.maxValue,
+      valueChangePattern: factorNode.valueChangePattern,
+      frequencyHz: factorNode.frequencyHz,
+      startTimeSeconds: factorNode.startTimeSeconds,
+      durationSeconds: factorNode.durationSeconds,
+      falloffType: factorNode.falloffType,
+      falloffExponent: factorNode.falloffExponent,
+      warningThreshold: factorNode.warningThreshold,
+      criticalThreshold: factorNode.criticalThreshold,
+      failureThreshold: factorNode.failureThreshold,
+      priority: factorNode.priority,
     });
     return response.data;
   }
@@ -91,7 +121,8 @@ class EditorService {
     await api.delete(`/schemas/nodes/${nodeId}`);
   }
 
-  // Обновленный метод для создания связи с поддержкой двух типов
+  // ============ СВЯЗИ ============
+  
   async createConnection(
     schemaId: string, 
     sourceNodeId: string, 
@@ -125,7 +156,6 @@ class EditorService {
     return response.data;
   }
 
-  // Обновленный метод для обновления связи
   async updateConnection(connectionId: string, data: { lengthM?: number; distance?: number; isActive?: boolean }): Promise<void> {
     await api.put(`/schemas/connections/${connectionId}`, data);
   }
@@ -134,6 +164,8 @@ class EditorService {
     await api.delete(`/schemas/connections/${connectionId}`);
   }
 
+  // ============ ВАЛИДАЦИЯ И ПРОЧЕЕ ============
+  
   async validateSchema(schemaId: string): Promise<ValidationResult> {
     const response = await api.post<ValidationResult>(`/schemas/${schemaId}/validate`);
     return response.data;
@@ -154,7 +186,6 @@ class EditorService {
     return response.data;
   }
 
-  // Обновленный метод для полного сохранения схемы
   async updateFullSchema(schemaId: string, schemaData: any): Promise<Record<string, string>> {
     const response = await api.put(`/schemas/${schemaId}/full`, schemaData);
     return response.data;

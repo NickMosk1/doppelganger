@@ -85,6 +85,15 @@ const HelperText = styled.div`
   margin-top: 4px;
 `;
 
+const SectionTitle = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: ${colors.text};
+  margin: 16px 0 12px 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid ${colors.border};
+`;
+
 interface AddCableModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -128,6 +137,19 @@ export const AddCableModal: React.FC<AddCableModalProps> = ({
     temperatureRating: 60,
     shieldingType: 0,
     pricePerMeter: 10,
+    // Новые поля
+    bendingRadiusMm: 50,
+    tensileStrengthN: 100,
+    operatingTensionMaxN: 50,
+    capacitancePerKmNf: 50,
+    resistancePerKmOhms: 85,
+    maxFrequencyMhz: 250,
+    signalToNoiseRatioDb: 30,
+    oilResistance: false,
+    uvResistance: false,
+    chemicalResistance: '',
+    expectedLifetimeYears: 10,
+    degradationRatePerYear: 2.0,
     description: '',
   });
 
@@ -161,11 +183,28 @@ export const AddCableModal: React.FC<AddCableModalProps> = ({
       temperatureRating: formData.temperatureRating,
       shieldingType: formData.shieldingType,
       pricePerMeter: formData.pricePerMeter,
+      // Новые поля
+      bendingRadiusMm: formData.bendingRadiusMm,
+      tensileStrengthN: formData.tensileStrengthN,
+      operatingTensionMaxN: formData.operatingTensionMaxN,
+      capacitancePerKmNf: formData.capacitancePerKmNf,
+      resistancePerKmOhms: formData.resistancePerKmOhms,
+      maxFrequencyMhz: formData.maxFrequencyMhz,
+      signalToNoiseRatioDb: formData.signalToNoiseRatioDb,
+      oilResistance: formData.oilResistance,
+      uvResistance: formData.uvResistance,
+      chemicalResistance: formData.chemicalResistance || null,
+      expectedLifetimeYears: formData.expectedLifetimeYears,
+      degradationRatePerYear: formData.degradationRatePerYear,
       description: formData.description || null,
       isActive: true,
       isCustom: true,
     });
     onClose();
+    resetForm();
+  };
+
+  const resetForm = () => {
     setFormData({
       name: '',
       type: defaultType,
@@ -180,28 +219,25 @@ export const AddCableModal: React.FC<AddCableModalProps> = ({
       temperatureRating: 60,
       shieldingType: 0,
       pricePerMeter: 10,
+      bendingRadiusMm: 50,
+      tensileStrengthN: 100,
+      operatingTensionMaxN: 50,
+      capacitancePerKmNf: 50,
+      resistancePerKmOhms: 85,
+      maxFrequencyMhz: 250,
+      signalToNoiseRatioDb: 30,
+      oilResistance: false,
+      uvResistance: false,
+      chemicalResistance: '',
+      expectedLifetimeYears: 10,
+      degradationRatePerYear: 2.0,
       description: '',
     });
   };
 
   const handleClose = () => {
     onClose();
-    setFormData({
-      name: '',
-      type: defaultType,
-      manufacturer: '',
-      model: '',
-      maxLengthM: 100,
-      attenuationDbPerKm: 20,
-      propagationSpeed: 0.65,
-      impedanceOhms: 100,
-      coreDiameterUm: null,
-      immunityRating: 5,
-      temperatureRating: 60,
-      shieldingType: 0,
-      pricePerMeter: 10,
-      description: '',
-    });
+    resetForm();
   };
 
   return (
@@ -217,6 +253,9 @@ export const AddCableModal: React.FC<AddCableModalProps> = ({
       }
     >
       <ModalContent>
+        {/* Основная информация */}
+        <SectionTitle>📋 Основная информация</SectionTitle>
+        
         <FormGroup>
           <Label>
             Название <RequiredMark>*</RequiredMark>
@@ -282,6 +321,9 @@ export const AddCableModal: React.FC<AddCableModalProps> = ({
           </FormGroup>
         </FormRow>
 
+        {/* Физические характеристики */}
+        <SectionTitle>📐 Физические характеристики</SectionTitle>
+
         <FormRow>
           <FormGroup>
             <Label>Затухание (дБ/км)</Label>
@@ -312,11 +354,58 @@ export const AddCableModal: React.FC<AddCableModalProps> = ({
 
         <FormRow>
           <FormGroup>
+            <Label>Мин. радиус изгиба (мм)</Label>
+            <Input
+              type="number"
+              step="5"
+              min="10"
+              max="200"
+              value={formData.bendingRadiusMm}
+              onChange={(e) => setFormData({ ...formData, bendingRadiusMm: Number(e.target.value) })}
+              fullWidth
+            />
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Прочность на разрыв (Н)</Label>
+            <Input
+              type="number"
+              step="10"
+              min="20"
+              max="500"
+              value={formData.tensileStrengthN}
+              onChange={(e) => setFormData({ ...formData, tensileStrengthN: Number(e.target.value) })}
+              fullWidth
+            />
+          </FormGroup>
+        </FormRow>
+
+        <FormRow>
+          <FormGroup>
+            <Label>Макс. рабочее натяжение (Н)</Label>
+            <Input
+              type="number"
+              step="10"
+              min="10"
+              max="300"
+              value={formData.operatingTensionMaxN}
+              onChange={(e) => setFormData({ ...formData, operatingTensionMaxN: Number(e.target.value) })}
+              fullWidth
+            />
+          </FormGroup>
+        </FormRow>
+
+        {/* Электрические параметры */}
+        <SectionTitle>⚡ Электрические параметры</SectionTitle>
+
+        <FormRow>
+          <FormGroup>
             <Label>Импеданс (Ом)</Label>
             <Input
               type="number"
               step="5"
-              min="0"
+              min="50"
+              max="150"
               value={formData.impedanceOhms}
               onChange={(e) => setFormData({ ...formData, impedanceOhms: Number(e.target.value) })}
               fullWidth
@@ -328,13 +417,76 @@ export const AddCableModal: React.FC<AddCableModalProps> = ({
             <Input
               type="number"
               step="0.1"
-              min="0"
+              min="0.1"
+              max="10"
               value={formData.coreDiameterUm || ''}
               onChange={(e) => setFormData({ ...formData, coreDiameterUm: e.target.value ? Number(e.target.value) : null })}
               fullWidth
             />
           </FormGroup>
         </FormRow>
+
+        <FormRow>
+          <FormGroup>
+            <Label>Ёмкость (нФ/км)</Label>
+            <Input
+              type="number"
+              step="5"
+              min="30"
+              max="100"
+              value={formData.capacitancePerKmNf}
+              onChange={(e) => setFormData({ ...formData, capacitancePerKmNf: Number(e.target.value) })}
+              fullWidth
+            />
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Сопротивление (Ом/км)</Label>
+            <Input
+              type="number"
+              step="5"
+              min="20"
+              max="200"
+              value={formData.resistancePerKmOhms}
+              onChange={(e) => setFormData({ ...formData, resistancePerKmOhms: Number(e.target.value) })}
+              fullWidth
+            />
+          </FormGroup>
+        </FormRow>
+
+        {/* Частотные характеристики */}
+        <SectionTitle>📡 Частотные характеристики</SectionTitle>
+
+        <FormRow>
+          <FormGroup>
+            <Label>Макс. частота (МГц)</Label>
+            <Input
+              type="number"
+              step="10"
+              min="10"
+              max="1000"
+              value={formData.maxFrequencyMhz}
+              onChange={(e) => setFormData({ ...formData, maxFrequencyMhz: Number(e.target.value) })}
+              fullWidth
+            />
+          </FormGroup>
+
+          <FormGroup>
+            <Label>SNR (дБ)</Label>
+            <Input
+              type="number"
+              step="1"
+              min="10"
+              max="60"
+              value={formData.signalToNoiseRatioDb}
+              onChange={(e) => setFormData({ ...formData, signalToNoiseRatioDb: Number(e.target.value) })}
+              fullWidth
+            />
+          </FormGroup>
+        </FormRow>
+
+        {/* Промышленная устойчивость */}
+        <SectionTitle>🏭 Промышленная устойчивость</SectionTitle>
 
         <FormRow3>
           <FormGroup>
@@ -354,6 +506,9 @@ export const AddCableModal: React.FC<AddCableModalProps> = ({
             <Label>Раб. температура (°C)</Label>
             <Input
               type="number"
+              step="5"
+              min="-40"
+              max="125"
               value={formData.temperatureRating}
               onChange={(e) => setFormData({ ...formData, temperatureRating: Number(e.target.value) })}
               fullWidth
@@ -372,6 +527,74 @@ export const AddCableModal: React.FC<AddCableModalProps> = ({
             </StyledSelect>
           </FormGroup>
         </FormRow3>
+
+        <FormRow3>
+          <FormGroup>
+            <Label>Маслостойкость</Label>
+            <StyledSelect
+              value={formData.oilResistance ? "true" : "false"}
+              onChange={(e) => setFormData({ ...formData, oilResistance: e.target.value === "true" })}
+            >
+              <option value="false">❌ Нет</option>
+              <option value="true">✅ Да</option>
+            </StyledSelect>
+          </FormGroup>
+
+          <FormGroup>
+            <Label>УФ-устойчивость</Label>
+            <StyledSelect
+              value={formData.uvResistance ? "true" : "false"}
+              onChange={(e) => setFormData({ ...formData, uvResistance: e.target.value === "true" })}
+            >
+              <option value="false">❌ Нет</option>
+              <option value="true">✅ Да</option>
+            </StyledSelect>
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Хим. стойкость</Label>
+            <Input
+              value={formData.chemicalResistance}
+              onChange={(e) => setFormData({ ...formData, chemicalResistance: e.target.value })}
+              placeholder="Кислоты, Щёлочи..."
+              fullWidth
+            />
+          </FormGroup>
+        </FormRow3>
+
+        {/* Срок службы */}
+        <SectionTitle>⏳ Срок службы</SectionTitle>
+
+        <FormRow>
+          <FormGroup>
+            <Label>Ожидаемый срок (лет)</Label>
+            <Input
+              type="number"
+              step="1"
+              min="1"
+              max="50"
+              value={formData.expectedLifetimeYears}
+              onChange={(e) => setFormData({ ...formData, expectedLifetimeYears: Number(e.target.value) })}
+              fullWidth
+            />
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Деградация (%/год)</Label>
+            <Input
+              type="number"
+              step="0.5"
+              min="0"
+              max="20"
+              value={formData.degradationRatePerYear}
+              onChange={(e) => setFormData({ ...formData, degradationRatePerYear: Number(e.target.value) })}
+              fullWidth
+            />
+          </FormGroup>
+        </FormRow>
+
+        {/* Стоимость и описание */}
+        <SectionTitle>💰 Стоимость</SectionTitle>
 
         <FormRow>
           <FormGroup>

@@ -428,3 +428,42 @@ export const DeleteButton = styled.button`
     transform: translateY(0);
   }
 `;
+// src/shared/components/Canvas/RightPanel/RightPanel.styles.ts
+
+// Добавьте эти компоненты в существующий файл
+
+export const StatsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+`;
+
+export const StatCard = styled.div`
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 8px;
+  text-align: center;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: #cbd5e1;
+    background: #f1f5f9;
+  }
+`;
+
+export const StatValue = styled.div`
+  font-size: 20px;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.2;
+`;
+
+export const StatLabel = styled.div`
+  font-size: 10px;
+  color: #64748b;
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+`;

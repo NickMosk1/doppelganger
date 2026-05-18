@@ -631,6 +631,64 @@ class EditorStore {
       factor: node.factor,
     });
   }
+
+  updateNodeField<T extends keyof EditorNode>(nodeId: string, field: T, value: EditorNode[T]) {
+    console.log(`🔄 updateNodeField: ${nodeId}, ${String(field)} = ${value}`);
+    
+    // Для всех полей используем updateNode
+    this.updateNode(nodeId, { [field]: value } as Partial<EditorNode>);
+  }
+
+  // Для обновления промышленных коэффициентов устройства
+  updateDeviceCoefficients(nodeId: string, coefficients: {
+    tempCoefficient?: number;
+    emiCoefficient?: number;
+    vibrationCoefficient?: number;
+    dustCoefficient?: number;
+  }) {
+    const node = this._nodes.find(n => n.id === nodeId);
+    if (node && node.type === EditorNodes.DEVICE) {
+      if (coefficients.tempCoefficient !== undefined) node.tempCoefficient = coefficients.tempCoefficient;
+      if (coefficients.emiCoefficient !== undefined) node.emiCoefficient = coefficients.emiCoefficient;
+      if (coefficients.vibrationCoefficient !== undefined) node.vibrationCoefficient = coefficients.vibrationCoefficient;
+      if (coefficients.dustCoefficient !== undefined) node.dustCoefficient = coefficients.dustCoefficient;
+      
+      // Синхронизация с device объектом
+      if (node.device) {
+        if (coefficients.tempCoefficient !== undefined) node.device.tempCoefficient = coefficients.tempCoefficient;
+        if (coefficients.emiCoefficient !== undefined) node.device.emiCoefficient = coefficients.emiCoefficient;
+        if (coefficients.vibrationCoefficient !== undefined) node.device.vibrationCoefficient = coefficients.vibrationCoefficient;
+        if (coefficients.dustCoefficient !== undefined) node.device.dustCoefficient = coefficients.dustCoefficient;
+      }
+    }
+  }
+
+  // Для обновления динамических параметров фактора
+  updateFactorDynamicParams(nodeId: string, params: {
+    changeRatePerSecond?: number;
+    minValue?: number;
+    maxValue?: number;
+    valueChangePattern?: string;
+    frequencyHz?: number;
+    startTimeSeconds?: number;
+    durationSeconds?: number;
+    falloffType?: string;
+    falloffExponent?: number;
+    warningThreshold?: number;
+    criticalThreshold?: number;
+    failureThreshold?: number;
+    priority?: number;
+  }) {
+    const node = this._nodes.find(n => n.id === nodeId);
+    if (node && node.type === EditorNodes.FACTOR) {
+      Object.assign(node, params);
+      
+      // Синхронизация с factor объектом
+      if (node.factor) {
+        Object.assign(node.factor, params);
+      }
+    }
+  }
 }
 
 export default EditorStore;

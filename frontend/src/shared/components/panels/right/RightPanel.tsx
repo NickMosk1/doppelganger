@@ -16,7 +16,7 @@ import {
 import { useResizePanel } from "./hooks/useResizePanel";
 import { DeviceView, CableView, EdgeView, SubSchemaView, EmptyView, FactorView } from "./components/ViewMode";
 import { DeviceEdit, CableEdit, EdgeEdit, SubSchemaEdit, FactorEdit } from "./components/EditMode";
-import { FactorsTab } from "./components";
+// import { FactorsTab } from "./components";
 import { ConnectionType, EditorNodes } from "../../../types";
 import { useStores } from "../../../../hooks";
 import { Dialog } from "../../Dialog";
@@ -35,7 +35,6 @@ const RightPanel: React.FC = observer(() => {
   const [pendingNodeChange, setPendingNodeChange] = useState<string | null>(null);
   const [pendingEdgeChange, setPendingEdgeChange] = useState<string | null>(null);
   
-  // Флаги для предотвращения бесконечного цикла
   const isSwitchingRef = useRef(false);
   const prevSelectedNodeIdRef = useRef<string | null>(null);
   const prevSelectedEdgeIdRef = useRef<string | null>(null);
@@ -44,9 +43,7 @@ const RightPanel: React.FC = observer(() => {
   const selectedEdge = editorStore.selectedEdge;
   const hasSelection = selectedNode || selectedEdge;
 
-  // Отслеживаем изменение selection
   useEffect(() => {
-    // Если мы в процессе переключения - пропускаем
     if (isSwitchingRef.current) {
       return;
     }
@@ -57,36 +54,26 @@ const RightPanel: React.FC = observer(() => {
     const prevNodeId = prevSelectedNodeIdRef.current;
     const prevEdgeId = prevSelectedEdgeIdRef.current;
     
-    // Если мы в режиме редактирования и selection изменился
     if (mode === "edit" && (currentNodeId !== prevNodeId || currentEdgeId !== prevEdgeId)) {
-      // Если есть несохраненные изменения
       if (pendingChanges) {
-        // Помечаем, что начинаем переключение
         isSwitchingRef.current = true;
-        
-        // Запоминаем, на какой элемент хотели переключиться
         setPendingNodeChange(currentNodeId);
         setPendingEdgeChange(currentEdgeId);
-        // Показываем диалог подтверждения
         setShowConfirmDialog(true);
         
-        // Возвращаем старый selection
         if (prevNodeId) {
           editorStore.selectNode(prevNodeId);
         } else if (prevEdgeId) {
           editorStore.selectEdge(prevEdgeId);
         }
         
-        // Сбрасываем флаг после завершения
         setTimeout(() => {
           isSwitchingRef.current = false;
         }, 100);
-        
         return;
       }
     }
     
-    // Обновляем refs
     prevSelectedNodeIdRef.current = currentNodeId;
     prevSelectedEdgeIdRef.current = currentEdgeId;
   }, [selectedNode, selectedEdge, mode, pendingChanges, editorStore]);
@@ -100,7 +87,6 @@ const RightPanel: React.FC = observer(() => {
     return "Свойства";
   };
 
-  // Функция сохранения черновика
   const saveDraft = useCallback(() => {
     const schemaId = editorStore.currentSchemaId;
     if (schemaId && draftStore.currentDraft) {
@@ -112,18 +98,12 @@ const RightPanel: React.FC = observer(() => {
     }
   }, [editorStore, draftStore]);
 
-  // Сохраняем изменения в store и на канвас
   const handleSave = () => {
     if (pendingChanges && selectedNode) {
       console.log("✅ Applying changes to store:", pendingChanges);
-      
       editorStore.updateNode(selectedNode.id, pendingChanges);
-      
       setPendingChanges(null);
-      
-      setTimeout(() => {
-        saveDraft();
-      }, 100);
+      setTimeout(() => saveDraft(), 100);
     }
     
     if (pendingChanges && selectedEdge && selectedEdge.connectionType === ConnectionType.FACTOR_ELEMENT) {
@@ -136,18 +116,13 @@ const RightPanel: React.FC = observer(() => {
         isActive: pendingChanges.isActive,
       });
       setPendingChanges(null);
-      
-      setTimeout(() => {
-        saveDraft();
-      }, 100);
+      setTimeout(() => saveDraft(), 100);
     }
     
     setMode("view");
   };
 
-  // Сохранить и переключиться на новую ноду
   const handleSaveAndSwitch = () => {
-    // Сначала сохраняем текущие изменения
     if (pendingChanges && selectedNode) {
       editorStore.updateNode(selectedNode.id, pendingChanges);
     }
@@ -163,11 +138,8 @@ const RightPanel: React.FC = observer(() => {
     }
     
     setPendingChanges(null);
-    
-    // Сохраняем черновик
     saveDraft();
     
-    // Переключаемся на новую ноду
     if (pendingNodeChange) {
       editorStore.selectNode(pendingNodeChange);
     } else if (pendingEdgeChange) {
@@ -180,11 +152,9 @@ const RightPanel: React.FC = observer(() => {
     setShowConfirmDialog(false);
   };
 
-  // Отмена изменений и переключение
   const handleCancelAndSwitch = () => {
     setPendingChanges(null);
     
-    // Переключаемся на новую ноду
     if (pendingNodeChange) {
       editorStore.selectNode(pendingNodeChange);
     } else if (pendingEdgeChange) {
@@ -197,14 +167,7 @@ const RightPanel: React.FC = observer(() => {
     setShowConfirmDialog(false);
   };
 
-  // Отмена изменений (без переключения)
-  const handleCancel = () => {
-    setPendingChanges(null);
-    setMode("view");
-    setShowConfirmDialog(false);
-  };
-
-  // Переключение в режим редактирования
+  // ============ ОБНОВЛЕННЫЙ handleEdit ============
   const handleEdit = () => {
     if (selectedNode) {
       if (selectedNode.type === EditorNodes.FACTOR) {
@@ -212,7 +175,23 @@ const RightPanel: React.FC = observer(() => {
           customName: selectedNode.customName || selectedNode.name,
           factorValue: selectedNode.factorValue ?? selectedNode.factor?.factorValue ?? 25,
           factorRadius: selectedNode.factorRadius ?? selectedNode.factor?.factorRadius ?? 10,
+          factorUnit: selectedNode.factorUnit ?? selectedNode.factor?.factorUnit ?? "°C",
+          factorType: selectedNode.factorType ?? selectedNode.factor?.factorType ?? "TEMPERATURE",
           isEnabled: selectedNode.isEnabled !== false,
+          // Динамические поля
+          changeRatePerSecond: selectedNode.changeRatePerSecond ?? selectedNode.factor?.changeRatePerSecond ?? 0,
+          minValue: selectedNode.minValue ?? selectedNode.factor?.minValue,
+          maxValue: selectedNode.maxValue ?? selectedNode.factor?.maxValue,
+          valueChangePattern: selectedNode.valueChangePattern ?? selectedNode.factor?.valueChangePattern ?? "NONE",
+          frequencyHz: selectedNode.frequencyHz ?? selectedNode.factor?.frequencyHz,
+          startTimeSeconds: selectedNode.startTimeSeconds ?? selectedNode.factor?.startTimeSeconds,
+          durationSeconds: selectedNode.durationSeconds ?? selectedNode.factor?.durationSeconds,
+          falloffType: selectedNode.falloffType ?? selectedNode.factor?.falloffType ?? "NONE",
+          falloffExponent: selectedNode.falloffExponent ?? selectedNode.factor?.falloffExponent ?? 2.0,
+          warningThreshold: selectedNode.warningThreshold ?? selectedNode.factor?.warningThreshold,
+          criticalThreshold: selectedNode.criticalThreshold ?? selectedNode.factor?.criticalThreshold,
+          failureThreshold: selectedNode.failureThreshold ?? selectedNode.factor?.failureThreshold,
+          priority: selectedNode.priority ?? selectedNode.factor?.priority ?? 5,
         };
         setPendingChanges(currentData);
       } else if (selectedNode.type === EditorNodes.DEVICE) {
@@ -220,6 +199,33 @@ const RightPanel: React.FC = observer(() => {
           customName: selectedNode.customName || selectedNode.name,
           baseLatencyMs: selectedNode.baseLatencyMs ?? selectedNode.device?.baseLatencyMs ?? 0,
           maxThroughputMbps: selectedNode.maxThroughputMbps ?? selectedNode.device?.maxThroughputMbps ?? 0,
+          manufacturer: selectedNode.manufacturer ?? selectedNode.device?.manufacturer ?? "",
+          portCount: selectedNode.portCount ?? selectedNode.device?.portCount,
+          // Промышленные коэффициенты
+          tempCoefficient: selectedNode.tempCoefficient ?? selectedNode.device?.tempCoefficient ?? 1.0,
+          emiCoefficient: selectedNode.emiCoefficient ?? selectedNode.device?.emiCoefficient ?? 1.0,
+          vibrationCoefficient: selectedNode.vibrationCoefficient ?? selectedNode.device?.vibrationCoefficient ?? 1.0,
+          dustCoefficient: selectedNode.dustCoefficient ?? selectedNode.device?.dustCoefficient ?? 1.0,
+          // Допустимые диапазоны
+          maxOperatingTemp: selectedNode.maxOperatingTemp ?? selectedNode.device?.maxOperatingTemp,
+          minOperatingTemp: selectedNode.minOperatingTemp ?? selectedNode.device?.minOperatingTemp,
+          maxEmiTolerance: selectedNode.maxEmiTolerance ?? selectedNode.device?.maxEmiTolerance,
+          maxVibrationTolerance: selectedNode.maxVibrationTolerance ?? selectedNode.device?.maxVibrationTolerance,
+          // Надежность
+          mtbfHours: selectedNode.mtbfHours ?? selectedNode.device?.mtbfHours,
+          mttrMinutes: selectedNode.mttrMinutes ?? selectedNode.device?.mttrMinutes,
+          warmUpTimeSeconds: selectedNode.warmUpTimeSeconds ?? selectedNode.device?.warmUpTimeSeconds,
+          // Экономика
+          replacementCost: selectedNode.replacementCost ?? selectedNode.device?.replacementCost,
+          repairCost: selectedNode.repairCost ?? selectedNode.device?.repairCost,
+          // Энергопотребление
+          powerConsumptionWatts: selectedNode.powerConsumptionWatts ?? selectedNode.device?.powerConsumptionWatts,
+          heatGenerationWatts: selectedNode.heatGenerationWatts ?? selectedNode.device?.heatGenerationWatts,
+          ipRating: selectedNode.ipRating ?? selectedNode.device?.ipRating,
+          operatingHumidityMax: selectedNode.operatingHumidityMax ?? selectedNode.device?.operatingHumidityMax,
+          needsCooling: selectedNode.needsCooling ?? selectedNode.device?.needsCooling,
+          hasRedundantPower: selectedNode.hasRedundantPower ?? selectedNode.device?.hasRedundantPower,
+          isEnabled: selectedNode.isEnabled !== false,
         };
         setPendingChanges(currentData);
       } else if (selectedNode.type === EditorNodes.CABLE) {
@@ -227,6 +233,31 @@ const RightPanel: React.FC = observer(() => {
           customName: selectedNode.customName || selectedNode.name,
           lengthM: selectedNode.lengthM ?? selectedNode.cableLengthM ?? 10,
           bandwidthMbps: selectedNode.bandwidthMbps ?? 1000,
+          cableType: selectedNode.cableType ?? "TWISTED_PAIR",
+          // Физические характеристики
+          propagationSpeed: selectedNode.propagationSpeed,
+          bendingRadiusMm: selectedNode.bendingRadiusMm,
+          tensileStrengthN: selectedNode.tensileStrengthN,
+          operatingTensionMaxN: selectedNode.operatingTensionMaxN,
+          // Электрические параметры
+          impedanceOhms: selectedNode.impedanceOhms,
+          coreDiameterUm: selectedNode.coreDiameterUm,
+          capacitancePerKmNf: selectedNode.capacitancePerKmNf,
+          resistancePerKmOhms: selectedNode.resistancePerKmOhms,
+          // Частотные характеристики
+          maxFrequencyMhz: selectedNode.maxFrequencyMhz,
+          signalToNoiseRatioDb: selectedNode.signalToNoiseRatioDb,
+          // Промышленная устойчивость
+          immunityRating: selectedNode.immunityRating ?? 5,
+          temperatureRating: selectedNode.temperatureRating ?? 60,
+          shieldingType: selectedNode.shieldingType ?? 0,
+          oilResistance: selectedNode.oilResistance ?? false,
+          uvResistance: selectedNode.uvResistance ?? false,
+          chemicalResistance: selectedNode.chemicalResistance,
+          // Срок службы
+          expectedLifetimeYears: selectedNode.expectedLifetimeYears,
+          degradationRatePerYear: selectedNode.degradationRatePerYear,
+          isEnabled: selectedNode.isEnabled !== false,
         };
         setPendingChanges(currentData);
       }
@@ -242,7 +273,6 @@ const RightPanel: React.FC = observer(() => {
     setMode("edit");
   };
 
-  // Попытка выхода из режима редактирования
   const handleExitEdit = () => {
     if (pendingChanges) {
       setShowConfirmDialog(true);
@@ -268,13 +298,11 @@ const RightPanel: React.FC = observer(() => {
     setPendingChanges(null);
   };
 
-  // Обработка изменений из Edit компонентов
   const handleDataChange = (updatedData: any) => {
     console.log("📝 Data changed:", updatedData);
     setPendingChanges(updatedData);
   };
 
-  // Получаем актуальную ноду из стора
   const getActualNode = () => {
     if (!selectedNode) return null;
     return editorStore.getNodeById(selectedNode.id);
@@ -335,9 +363,6 @@ const RightPanel: React.FC = observer(() => {
         <Tab active={activeTab === "properties"} onClick={() => setActiveTab("properties")}>
           Свойства
         </Tab>
-        {/* <Tab active={activeTab === "factors"} onClick={() => setActiveTab("factors")}>
-          Факторы
-        </Tab> */}
       </Tabs>
 
       {activeTab === "properties" && (
@@ -363,7 +388,6 @@ const RightPanel: React.FC = observer(() => {
 
       <PanelContent>
         {activeTab === "properties" && renderContent()}
-        {activeTab === "factors" && <FactorsTab />}
       </PanelContent>
 
       <Dialog
@@ -376,7 +400,6 @@ const RightPanel: React.FC = observer(() => {
         type="danger"
       />
 
-      {/* Диалог подтверждения при смене ноды в режиме редактирования */}
       <Dialog
         isOpen={showConfirmDialog}
         onClose={handleCloseConfirmDialog}
