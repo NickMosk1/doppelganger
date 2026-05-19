@@ -97,7 +97,6 @@ public class SchemaController {
         log.info("Getting full schema for id: {}", id);
         SchemaFullDto result = schemaService.getSchemaFull(id);
         
-        // Логируем первую связь для проверки
         if (result.getConnections() != null && !result.getConnections().isEmpty()) {
             SchemaFullDto.ConnectionDto first = result.getConnections().get(0);
             log.info("First connection in response: id={}, sourceNodeId={}, targetNodeId={}", 
@@ -170,7 +169,6 @@ public class SchemaController {
         
         Schema schema = schemaService.getSchemaById(id);
         
-        // Удаляем существующие данные
         connectionRepository.deleteBySchemaId(id);
         schemaNodeRepository.deleteBySchemaId(id);
         
@@ -231,8 +229,9 @@ public class SchemaController {
                     }
                 }
                 
-                // Для FACTOR
+                // ============ ДЛЯ FACTOR (ИСПРАВЛЕНО) ============
                 if (nodeType == SchemaNode.NodeType.FACTOR) {
+                    // Основные поля
                     if (node.containsKey("factorType")) {
                         schemaNode.setFactorType((String) node.get("factorType"));
                     }
@@ -244,6 +243,57 @@ public class SchemaController {
                     }
                     if (node.containsKey("factorRadius")) {
                         schemaNode.setFactorRadius(((Number) node.get("factorRadius")).doubleValue());
+                    }
+                    
+                    // Пороги
+                    if (node.containsKey("warningThreshold")) {
+                        Object val = node.get("warningThreshold");
+                        schemaNode.setWarningThreshold(val != null ? ((Number) val).doubleValue() : null);
+                    }
+                    if (node.containsKey("criticalThreshold")) {
+                        Object val = node.get("criticalThreshold");
+                        schemaNode.setCriticalThreshold(val != null ? ((Number) val).doubleValue() : null);
+                    }
+                    if (node.containsKey("failureThreshold")) {
+                        Object val = node.get("failureThreshold");
+                        schemaNode.setFailureThreshold(val != null ? ((Number) val).doubleValue() : null);
+                    }
+                    
+                    // Динамические поля
+                    if (node.containsKey("changeRatePerSecond")) {
+                        schemaNode.setChangeRatePerSecond(((Number) node.get("changeRatePerSecond")).doubleValue());
+                    }
+                    if (node.containsKey("minValue")) {
+                        Object val = node.get("minValue");
+                        schemaNode.setMinValue(val != null ? ((Number) val).doubleValue() : null);
+                    }
+                    if (node.containsKey("maxValue")) {
+                        Object val = node.get("maxValue");
+                        schemaNode.setMaxValue(val != null ? ((Number) val).doubleValue() : null);
+                    }
+                    if (node.containsKey("valueChangePattern")) {
+                        schemaNode.setValueChangePattern((String) node.get("valueChangePattern"));
+                    }
+                    if (node.containsKey("frequencyHz")) {
+                        Object val = node.get("frequencyHz");
+                        schemaNode.setFrequencyHz(val != null ? ((Number) val).doubleValue() : null);
+                    }
+                    if (node.containsKey("startTimeSeconds")) {
+                        Object val = node.get("startTimeSeconds");
+                        schemaNode.setStartTimeSeconds(val != null ? ((Number) val).intValue() : null);
+                    }
+                    if (node.containsKey("durationSeconds")) {
+                        Object val = node.get("durationSeconds");
+                        schemaNode.setDurationSeconds(val != null ? ((Number) val).intValue() : null);
+                    }
+                    if (node.containsKey("falloffType")) {
+                        schemaNode.setFalloffType((String) node.get("falloffType"));
+                    }
+                    if (node.containsKey("falloffExponent")) {
+                        schemaNode.setFalloffExponent(((Number) node.get("falloffExponent")).doubleValue());
+                    }
+                    if (node.containsKey("priority")) {
+                        schemaNode.setPriority(((Number) node.get("priority")).intValue());
                     }
                 }
                 

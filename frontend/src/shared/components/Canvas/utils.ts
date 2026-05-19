@@ -75,7 +75,7 @@ export const getDeviceIcon = (deviceType: string): string => {
 };
 
 // Получение иконки для фактора
-export const getFactorIcon = (factorType: string): string => {
+export const getFactorIcon = (factorType?: string): string => {
   switch (factorType) {
     case "TEMPERATURE": return "🌡️";
     case "EMI": return "⚡";

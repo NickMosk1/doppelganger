@@ -148,11 +148,15 @@ const SchemaEditorPage: React.FC = observer(() => {
             if (node.nodeType === "FACTOR" && node.factor) {
               return {
                 ...baseNode,
+                // Берём из node.factor (с бекенда приходит в factor)
                 factorType: node.factor.factorType,
                 factorValue: node.factor.factorValue,
                 factorUnit: node.factor.factorUnit,
                 factorRadius: node.factor.factorRadius,
-                // Динамические поля фактора
+                // Копируем в прямые поля
+                warningThreshold: node.factor.warningThreshold,
+                criticalThreshold: node.factor.criticalThreshold,
+                failureThreshold: node.factor.failureThreshold,
                 changeRatePerSecond: node.factor.changeRatePerSecond,
                 minValue: node.factor.minValue,
                 maxValue: node.factor.maxValue,
@@ -162,9 +166,6 @@ const SchemaEditorPage: React.FC = observer(() => {
                 durationSeconds: node.factor.durationSeconds,
                 falloffType: node.factor.falloffType,
                 falloffExponent: node.factor.falloffExponent,
-                warningThreshold: node.factor.warningThreshold,
-                criticalThreshold: node.factor.criticalThreshold,
-                failureThreshold: node.factor.failureThreshold,
                 priority: node.factor.priority,
                 factor: node.factor,
                 icon: getFactorIcon(node.factor.factorType),
@@ -380,7 +381,11 @@ const SchemaEditorPage: React.FC = observer(() => {
               factorValue: node.factorValue,
               factorUnit: node.factorUnit,
               factorRadius: node.factorRadius,
-              // Динамические поля фактора
+              // Пороги
+              warningThreshold: node.warningThreshold,
+              criticalThreshold: node.criticalThreshold,
+              failureThreshold: node.failureThreshold,
+              // Динамические поля
               changeRatePerSecond: node.changeRatePerSecond,
               minValue: node.minValue,
               maxValue: node.maxValue,
@@ -390,9 +395,6 @@ const SchemaEditorPage: React.FC = observer(() => {
               durationSeconds: node.durationSeconds,
               falloffType: node.falloffType,
               falloffExponent: node.falloffExponent,
-              warningThreshold: node.warningThreshold,
-              criticalThreshold: node.criticalThreshold,
-              failureThreshold: node.failureThreshold,
               priority: node.priority,
             };
           }
