@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import com.fasterxml.jackson.core.type.TypeReference;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -426,9 +426,10 @@ public class SimulationService {
                         currentValue = baseValue + changeRate * Math.sin(2 * Math.PI * freq * currentTime);
                         break;
                     case "STEP":
-                        // Ступенчатое изменение: каждые changeRate секунд значение удваивается
-                        int steps = (int) (currentTime / Math.max(0.1, changeRate));
-                        currentValue = baseValue * (steps + 1);
+                        // Ступенчатое изменение: каждые changeRate секунд значение увеличивается на шаг
+                        double stepInterval = Math.max(0.1, changeRate);
+                        int steps = (int) (currentTime / stepInterval);
+                        currentValue = baseValue + (steps * baseValue * 0.1); // +10% за каждый шаг
                         break;
                     case "RANDOM":
                         Random rand = new Random();
@@ -488,13 +489,18 @@ public class SimulationService {
                         generateThresholdEvent(specs, "TEMPERATURE", tempImpact, impact.getWarningThreshold(),
                             impact.getCriticalThreshold(), impact.getFailureThreshold(), time, events);
                     }
+                    
+                    // Влияние температуры на задержку и потери
                     if (tempImpact > 40) {
-                        latency *= (1 + (tempImpact - 40) * 0.03);
-                        packetLoss += (tempImpact - 40) * 1.5;
+                        double excessTemp = tempImpact - 40;
+                        // +10% за каждый градус выше 40 (было 3%)
+                        latency *= (1 + excessTemp * 0.10);
+                        packetLoss += excessTemp * 2.0;
                     }
                     if (impact.getFailureThreshold() != null && tempImpact > impact.getFailureThreshold() && state != null) {
                         state.setFailed(true);
                         packetLoss = 100;
+                        latency = 1000; // Огромная задержка при отказе
                     }
                     break;
                     
@@ -506,12 +512,17 @@ public class SimulationService {
                         generateThresholdEvent(specs, "EMI", emiImpact, impact.getWarningThreshold(),
                             impact.getCriticalThreshold(), impact.getFailureThreshold(), time, events);
                     }
+                    
+                    // Влияние EMI на задержку и потери
                     if (emiImpact > 30) {
-                        latency *= (1 + (emiImpact - 30) * 0.02);
-                        packetLoss += (emiImpact - 30) * 2.0;
+                        double excessEmi = emiImpact - 30;
+                        // +8% за каждый dBm выше 30
+                        latency *= (1 + excessEmi * 0.08);
+                        packetLoss += excessEmi * 3.0;
                     }
                     if (impact.getFailureThreshold() != null && emiImpact > impact.getFailureThreshold()) {
                         packetLoss = 100;
+                        latency = 1000;
                     }
                     break;
                     
@@ -523,9 +534,15 @@ public class SimulationService {
                         generateThresholdEvent(specs, "VIBRATION", vibImpact, impact.getWarningThreshold(),
                             impact.getCriticalThreshold(), impact.getFailureThreshold(), time, events);
                     }
+                    
+                    // Влияние вибрации на задержку и потери
                     if (vibImpact > 50) {
-                        packetLoss += (vibImpact - 50) * 1.0;
-                        latency += Math.random() * (vibImpact - 50) * 0.1;
+                        double excessVib = vibImpact - 50;
+                        // +5% за каждый Hz выше 50
+                        latency *= (1 + excessVib * 0.05);
+                        packetLoss += excessVib * 1.5;
+                        // Добавляем случайный джиттер от вибрации
+                        latency += Math.random() * excessVib * 0.3;
                     }
                     break;
                     
@@ -537,18 +554,111 @@ public class SimulationService {
                         generateThresholdEvent(specs, "DUST", dustImpact, impact.getWarningThreshold(),
                             impact.getCriticalThreshold(), impact.getFailureThreshold(), time, events);
                     }
+                    
+                    // Влияние пыли на пропускную способность и потери
                     if (dustImpact > 30) {
-                        throughput *= (1 - dustImpact / 100);
-                        packetLoss += dustImpact * 0.5;
+                        double excessDust = dustImpact - 30;
+                        // Пыль увеличивает задержку из-за повторных передач
+                        latency *= (1 + excessDust / 10 * 0.05);
+                        throughput *= (1 - excessDust / 100);
+                        packetLoss += excessDust * 0.8;
                     }
                     break;
             }
         }
         
+        // ============ УЧЕТ ГЛОБАЛЬНЫХ ФАКТОРОВ СХЕМЫ ============
+        Double globalTemp = globalFactors.getOrDefault("TEMPERATURE", 25.0);
+        Double globalEmi = globalFactors.getOrDefault("EMI", 20.0);
+        Double globalVibration = globalFactors.getOrDefault("VIBRATION", 10.0);
+        Double globalDust = globalFactors.getOrDefault("DUST", 5.0);
+        
+        // Если нет индивидуальных факторов, используем глобальные
+        if (impacts.stream().noneMatch(i -> "TEMPERATURE".equals(i.getFactorType()))) {
+            currentTemp = globalTemp;
+            if (currentTemp > 40) {
+                packetLoss += (currentTemp - 40) * 0.5;
+                latency *= (1 + (currentTemp - 40) * 0.03);
+            }
+        }
+        if (impacts.stream().noneMatch(i -> "EMI".equals(i.getFactorType()))) {
+            currentEmi = globalEmi;
+            if (currentEmi > 40) {
+                packetLoss += (currentEmi - 40) * 0.3;
+                latency *= (1 + (currentEmi - 40) * 0.02);
+            }
+        }
+        if (impacts.stream().noneMatch(i -> "VIBRATION".equals(i.getFactorType()))) {
+            currentVibration = globalVibration;
+            if (currentVibration > 60) {
+                packetLoss += (currentVibration - 60) * 0.2;
+                latency *= (1 + (currentVibration - 60) * 0.01);
+            }
+        }
+        if (impacts.stream().noneMatch(i -> "DUST".equals(i.getFactorType()))) {
+            currentDust = globalDust;
+            if (currentDust > 30) {
+                throughput *= (1 - (currentDust - 30) / 100);
+                packetLoss += (currentDust - 30) * 0.3;
+                latency *= (1 + (currentDust - 30) / 50 * 0.02);
+            }
+        }
+        
+        // ============ ПРОВЕРКА ДОПУСТИМЫХ ДИАПАЗОНОВ УСТРОЙСТВА ============
+        if (specs.getMaxOperatingTemp() != null && currentTemp > specs.getMaxOperatingTemp()) {
+            packetLoss += (currentTemp - specs.getMaxOperatingTemp()) * 2.0;
+            latency *= (1 + (currentTemp - specs.getMaxOperatingTemp()) / 10 * 0.1);
+        }
+        if (specs.getMinOperatingTemp() != null && currentTemp < specs.getMinOperatingTemp()) {
+            packetLoss += (specs.getMinOperatingTemp() - currentTemp) * 1.5;
+            latency *= (1 + (specs.getMinOperatingTemp() - currentTemp) / 10 * 0.05);
+        }
+        if (specs.getMaxEmiTolerance() != null && currentEmi > specs.getMaxEmiTolerance()) {
+            packetLoss += (currentEmi - specs.getMaxEmiTolerance()) * 1.5;
+            latency *= (1 + (currentEmi - specs.getMaxEmiTolerance()) * 0.05);
+        }
+        if (specs.getMaxVibrationTolerance() != null && currentVibration > specs.getMaxVibrationTolerance()) {
+            packetLoss += (currentVibration - specs.getMaxVibrationTolerance()) * 1.0;
+            latency *= (1 + (currentVibration - specs.getMaxVibrationTolerance()) / 20 * 0.05);
+        }
+        
+        // ============ ЗАДЕРЖКА ОЧЕРЕДИ (чем выше загрузка, тем больше задержка) ============
+        double currentThroughput = Math.min(specs.getMaxThroughputMbps(), throughput);
+        double utilization = currentThroughput / specs.getMaxThroughputMbps();
+        if (utilization > 0.7) {
+            // Экспоненциальный рост задержки при загрузке > 70%
+            double queueDelay = Math.pow((utilization - 0.7) * 10, 2);
+            latency += queueDelay;
+        }
+        
         packetLoss = Math.min(100, packetLoss);
         throughput = throughput * (1 - packetLoss / 100);
         
+        // Убеждаемся, что задержка не меньше базовой
+        latency = Math.max(latency, specs.getBaseLatencyMs());
+        
         String status = packetLoss > 80 ? "FAILED" : (packetLoss > 20 ? "DEGRADED" : "OPERATIONAL");
+        double utilizationPercent = throughput / specs.getMaxThroughputMbps() * 100;
+        
+        // ============ ОПРЕДЕЛЕНИЕ ПРИЧИНЫ ДЕГРАДАЦИИ ============
+        String degradationCause = null;
+        if (packetLoss > 80) {
+            degradationCause = "Критическое воздействие факторов";
+        } else if (packetLoss > 20) {
+            if (currentTemp > (specs.getMaxOperatingTemp() != null ? specs.getMaxOperatingTemp() : 60)) {
+                degradationCause = "Перегрев (температура " + String.format("%.1f", currentTemp) + "°C)";
+            } else if (currentTemp > 60) {
+                degradationCause = "Высокая температура (" + String.format("%.1f", currentTemp) + "°C)";
+            } else if (currentEmi > (specs.getMaxEmiTolerance() != null ? specs.getMaxEmiTolerance() : 50)) {
+                degradationCause = "Электромагнитные помехи (" + String.format("%.1f", currentEmi) + " dBm)";
+            } else if (currentVibration > (specs.getMaxVibrationTolerance() != null ? specs.getMaxVibrationTolerance() : 70)) {
+                degradationCause = "Вибрация (" + String.format("%.1f", currentVibration) + " Hz)";
+            } else if (currentDust > 40) {
+                degradationCause = "Запылённость (" + String.format("%.1f", currentDust) + " mg/m³)";
+            } else {
+                degradationCause = "Комплексное воздействие факторов";
+            }
+        }
         
         return DeviceMetric.builder()
             .latencyMs(Math.round(latency * 10) / 10.0)
@@ -558,19 +668,46 @@ public class SimulationService {
             .emiLevel(currentEmi)
             .vibrationLevel(currentVibration)
             .dustLevel(currentDust)
-            .currentUtilizationPercent(throughput / specs.getMaxThroughputMbps() * 100)
+            .currentUtilizationPercent(utilizationPercent)
             .status(status)
+            .degradationCause(degradationCause)
             .build();
+    }
+
+    private String analyzeCableDegradationCause(ElementSpecs specs, CableMetricDto metric) {
+        List<String> causes = new ArrayList<>();
+        
+        if (specs.getShieldingType() == 0 && metric.getBitErrorRate() > 0.001) {
+            causes.add("отсутствует экранирование");
+        } else if (specs.getShieldingType() == 0 && metric.getBitErrorRate() > 0) {
+            causes.add("недостаточное экранирование");
+        }
+        
+        if (specs.getCableLengthM() > 100) {
+            causes.add(String.format("длина кабеля %.0fм превышает норму", specs.getCableLengthM()));
+        }
+        
+        if (metric.getAttenuationDb() > 20) {
+            causes.add("высокое затухание сигнала");
+        }
+        
+        if (metric.getBitErrorRate() > 0.01) {
+            causes.add("высокая частота битовых ошибок (BER)");
+        }
+        
+        return causes.isEmpty() ? "воздействие внешних факторов" : String.join(", ", causes);
     }
     
     /**
      * Расчет метрик кабеля (DTO версия)
      */
     private CableMetricDto calculateCableMetricsDto(ElementSpecs specs, List<FactorImpact> impacts,
-                                                     Map<String, Double> globalFactors, int time,
-                                                     CableState state, List<CriticalEvent> events) {
+                                                    Map<String, Double> globalFactors, int time,
+                                                    CableState state, List<CriticalEvent> events) {
         
-        double latency = specs.getCableLengthM() / 200000.0 * 1000;
+        // Базовая задержка кабеля (скорость света в кабеле)
+        double propagationSpeedFactor = 0.65;  // 65% от скорости света
+        double latency = specs.getCableLengthM() / (300000.0 * propagationSpeedFactor) * 1000;
         double packetLoss = 0.0;
         double ber = 0.0;
         double attenuation = specs.getAttenuationDbPerKm() * (specs.getCableLengthM() / 1000.0);
@@ -582,13 +719,20 @@ public class SimulationService {
             switch (impact.getFactorType().toUpperCase()) {
                 case "TEMPERATURE":
                     if (effectiveValue > 50) {
-                        attenuation *= (1 + (effectiveValue - 50) * 0.05);
-                        packetLoss += (effectiveValue - 50) * 0.5;
+                        double excessTemp = effectiveValue - 50;
+                        attenuation *= (1 + excessTemp * 0.10);
+                        packetLoss += excessTemp * 1.0;
+                        latency *= (1 + excessTemp * 0.05);
                         degradationCause = "Перегрев кабеля";
+                    }
+                    if (effectiveValue > 70) {
+                        ber += (effectiveValue - 70) * 0.001;
                     }
                     if (impact.getFailureThreshold() != null && effectiveValue > impact.getFailureThreshold() && state != null) {
                         state.setFailed(true);
                         packetLoss = 100;
+                        latency = 500;
+                        degradationCause = "Критический перегрев";
                     }
                     break;
                     
@@ -597,40 +741,80 @@ public class SimulationService {
                     double effectiveEMI = effectiveValue / shieldingFactor;
                     
                     if (effectiveEMI > 40) {
+                        double excessEMI = effectiveEMI - 40;
                         ber = calculateBER(effectiveEMI, specs.getImmunityRating());
-                        packetLoss = ber * 100;
-                        latency *= (1 + effectiveEMI / 100);
-                        degradationCause = "Электромагнитные помехи";
+                        packetLoss = Math.min(100, ber * 100);
+                        // Влияние EMI на задержку
+                        latency *= (1 + excessEMI / 30);
+                        if (specs.getShieldingType() == 0) {
+                            degradationCause = "Отсутствует экранирование, высокий уровень EMI";
+                        } else {
+                            degradationCause = "Электромагнитные помехи (EMI)";
+                        }
                     }
                     break;
                     
                 case "VIBRATION":
                     if (effectiveValue > 60) {
-                        packetLoss += (effectiveValue - 60) * 1.5;
-                        latency += effectiveValue * 0.05;
+                        double excessVib = effectiveValue - 60;
+                        packetLoss += excessVib * 2.0;
+                        latency += excessVib * 0.5;
                         degradationCause = "Вибрация";
+                        if (effectiveValue > 80) {
+                            ber += (effectiveValue - 80) * 0.001;
+                        }
+                    }
+                    break;
+                    
+                case "DUST":
+                    if (effectiveValue > 30) {
+                        double excessDust = effectiveValue - 30;
+                        packetLoss += excessDust * 1.0;
+                        attenuation += excessDust * 0.05;
+                        degradationCause = "Запылённость";
                     }
                     break;
             }
         }
         
+        // Влияние длины кабеля на качество
         if (specs.getCableLengthM() > 100) {
-            packetLoss += (specs.getCableLengthM() - 100) * 0.1;
-            degradationCause = "Превышение длины кабеля";
+            double excessLength = specs.getCableLengthM() - 100;
+            packetLoss += excessLength * 0.2;
+            attenuation += excessLength / 100 * 0.5;
+            if (degradationCause == null) {
+                degradationCause = "Превышение длины кабеля";
+            } else {
+                degradationCause += ", превышение длины";
+            }
+        }
+        
+        // Ограничиваем BER
+        ber = Math.min(0.1, ber);
+        
+        // Если BER высокий, увеличиваем задержку
+        if (ber > 0.01) {
+            latency *= (1 + ber * 10);
         }
         
         packetLoss = Math.min(100, packetLoss);
         double throughput = specs.getBandwidthMbps() * (1 - packetLoss / 100);
+        
+        // Задержка повторных передач при высоких потерях
+        if (packetLoss > 30) {
+            latency *= (1 + packetLoss / 100);
+        }
         
         String status = packetLoss > 80 ? "FAILED" : (packetLoss > 20 ? "DEGRADED" : "OPERATIONAL");
         
         return CableMetricDto.builder()
             .cableId(specs.getNodeId())
             .cableName(specs.getNodeName())
+            .latencyMs(Math.round(latency * 10) / 10.0)
             .packetLossPercent(Math.round(packetLoss * 10) / 10.0)
             .throughputMbps((double) Math.round(throughput))
-            .attenuationDb(Math.round(attenuation * 10) / 10.0)
             .bitErrorRate(ber)
+            .attenuationDb(Math.round(attenuation * 10) / 10.0)
             .status(status)
             .degradationCause(degradationCause)
             .build();
@@ -814,9 +998,9 @@ public class SimulationService {
     // ==================== СОХРАНЕНИЕ РЕЗУЛЬТАТОВ ====================
     
     private SimulationResult saveSimulationResult(Schema schema, String startNodeId, String endNodeId,
-                                                String name, Integer durationSeconds,
-                                                SimulationResultData resultData) {
-        
+                                                    String name, Integer durationSeconds,
+                                                    SimulationResultData resultData) {
+            
         String startNodeName = "";
         String endNodeName = "";
         
@@ -854,13 +1038,12 @@ public class SimulationService {
         
         List<String> bottlenecks = findBottlenecks(resultData.getTimeline(), resultData.getEvents());
         
-        // ============ ЭКОНОМИЧЕСКИЙ РАСЧЁТ (ИСПРАВЛЕН) ============
+        // ============ ЭКОНОМИЧЕСКИЙ РАСЧЁТ ============
         double totalReplacementCost = 0;
         double totalRepairCost = 0;
         Map<String, Double> deviceLosses = new HashMap<>();
         Map<String, Double> cableLosses = new HashMap<>();
         
-        // Используем resultData.getElementSpecs() который теперь сохранён
         Map<String, ElementSpecs> elementSpecs = resultData.getElementSpecs();
         
         for (DeviceState state : resultData.getDeviceStates().values()) {
@@ -880,22 +1063,19 @@ public class SimulationService {
         
         for (CableState state : resultData.getCableStates().values()) {
             if (state.isFailed()) {
-                // Для кабелей можно добавить стоимость замены позже
-                cableLosses.put(state.getNodeName(), 0.0);
+                double cableCost = 5000.0;
+                cableLosses.put(state.getNodeName(), cableCost);
+                totalReplacementCost += cableCost;
+            } else if (state.getLastPacketLoss() > 20) {
+                double cableRepairCost = 1000.0;
+                cableLosses.put(state.getNodeName(), cableRepairCost);
+                totalRepairCost += cableRepairCost;
             }
         }
         
         double totalEconomicLoss = totalReplacementCost + totalRepairCost;
         
-        EconomicImpactDto economicImpact = EconomicImpactDto.builder()
-            .totalReplacementCost(totalReplacementCost)
-            .totalRepairCost(totalRepairCost)
-            .estimatedDowntimeCost((double) devicesFailed * 3600 * 1000) // Упрощённая оценка
-            .totalLoss(totalEconomicLoss)
-            .deviceLosses(deviceLosses)
-            .cableLosses(cableLosses)
-            .build();
-        
+        // Формируем Summary
         Summary summary = Summary.builder()
             .maxLatencyMs(maxLatency)
             .avgLatencyMs(avgLatency)
@@ -910,6 +1090,7 @@ public class SimulationService {
             .totalDowntimeSeconds((double) devicesFailed * 3600)
             .build();
         
+        // Создаём результат
         SimulationResult result = new SimulationResult();
         result.setSchema(schema);
         result.setName(name != null ? name : "Симуляция " + LocalDateTime.now());
@@ -926,17 +1107,80 @@ public class SimulationService {
         result.setCablesFailedCount(cablesFailed);
         result.setTotalEconomicLoss(totalEconomicLoss);
         
+        // ============ ПОДГОТОВКА ДАННЫХ ДЛЯ JSON ============
+        Map<String, Object> economicImpactMap = new HashMap<>();
+        List<Map<String, Object>> deviceDetailsList = new ArrayList<>();
+        List<Map<String, Object>> cableDetailsList = new ArrayList<>();
+        Map<String, Object> factorContributions = new HashMap<>();
+        
         try {
+            // Экономический отчёт
+            economicImpactMap.put("totalReplacementCost", totalReplacementCost);
+            economicImpactMap.put("totalRepairCost", totalRepairCost);
+            economicImpactMap.put("totalLoss", totalEconomicLoss);
+            economicImpactMap.put("deviceLosses", deviceLosses);
+            economicImpactMap.put("cableLosses", cableLosses);
+            economicImpactMap.put("estimatedDowntimeCost", (double) devicesFailed * 3600 * 1000);
+            
+            // Детали устройств
+            for (DeviceState state : resultData.getDeviceStates().values()) {
+                Map<String, Object> deviceDetail = new HashMap<>();
+                deviceDetail.put("id", state.getNodeId());
+                deviceDetail.put("name", state.getNodeName());
+                deviceDetail.put("packetLoss", state.getLastPacketLoss());
+                deviceDetail.put("failed", state.isFailed());
+                deviceDetail.put("replacementCost", 
+                    elementSpecs.containsKey(state.getNodeId()) && elementSpecs.get(state.getNodeId()).getReplacementCost() != null 
+                        ? elementSpecs.get(state.getNodeId()).getReplacementCost() : 0);
+                deviceDetail.put("repairCost", 
+                    elementSpecs.containsKey(state.getNodeId()) && elementSpecs.get(state.getNodeId()).getRepairCost() != null 
+                        ? elementSpecs.get(state.getNodeId()).getRepairCost() : 0);
+                deviceDetailsList.add(deviceDetail);
+            }
+            
+            // Детали кабелей
+            for (CableState state : resultData.getCableStates().values()) {
+                Map<String, Object> cableDetail = new HashMap<>();
+                cableDetail.put("id", state.getNodeId());
+                cableDetail.put("name", state.getNodeName());
+                cableDetail.put("packetLoss", state.getLastPacketLoss());
+                cableDetail.put("failed", state.isFailed());
+                cableDetail.put("problemCause", state.getProblemCause() != null ? state.getProblemCause() : "");
+                cableDetailsList.add(cableDetail);
+            }
+            
+            // Вклад факторов
+            for (Map.Entry<String, Double> entry : resultData.getCurrentFactorValues().entrySet()) {
+                Map<String, Object> factorInfo = new HashMap<>();
+                factorInfo.put("value", entry.getValue());
+                factorInfo.put("severity", getSeverityForFactorWithThresholds(entry.getValue(), null, null, null));
+                factorContributions.put(entry.getKey(), factorInfo);
+            }
+            
+            // Сериализация
             result.setSummary(objectMapper.writeValueAsString(summary));
             result.setTimeline(objectMapper.writeValueAsString(resultData.getTimeline()));
             result.setEvents(objectMapper.writeValueAsString(resultData.getEvents()));
-            result.setEconomicImpact(objectMapper.writeValueAsString(economicImpact));
+            result.setEconomicImpact(objectMapper.writeValueAsString(economicImpactMap));
+            result.setDeviceDetails(objectMapper.writeValueAsString(deviceDetailsList));
+            result.setCableDetails(objectMapper.writeValueAsString(cableDetailsList));
+            result.setFactorContributions(objectMapper.writeValueAsString(factorContributions));
+            
+            // Логирование
+            log.info("=== SAVING SIMULATION RESULT ===");
+            log.info("EconomicImpact: totalLoss={}", totalEconomicLoss);
+            log.info("DeviceDetails size: {}", deviceDetailsList.size());
+            log.info("CableDetails size: {}", cableDetailsList.size());
+            log.info("FactorContributions size: {}", factorContributions.size());
             
         } catch (Exception e) {
             log.error("Failed to serialize simulation results", e);
         }
         
-        return simulationResultRepository.save(result);
+        SimulationResult saved = simulationResultRepository.save(result);
+        log.info("Saved result ID: {}, Grade: {}", saved.getId(), saved.getGrade());
+        
+        return saved;
     }
 
     private String getSeverityForFactorWithThresholds(double currentValue, 
@@ -947,6 +1191,62 @@ public class SimulationService {
         if (criticalThreshold != null && currentValue >= criticalThreshold) return "CRITICAL";
         if (warningThreshold != null && currentValue >= warningThreshold) return "WARNING";
         return "NORMAL";
+    }
+
+    private void generateCableEvents(String nodeId, ElementSpecs specs, CableMetricDto metric,
+                                    int time, List<CriticalEvent> events) {
+        
+        if (metric.getPacketLossPercent() > 50) {
+            String cause = analyzeCableDegradationCause(specs, metric);
+            String recommendation = generateCableRecommendation(specs, metric, cause);
+            
+            events.add(CriticalEvent.builder()
+                .timestamp(time)
+                .type("CABLE_DEGRADATION")
+                .deviceId(nodeId)
+                .deviceName(specs.getNodeName())
+                .message(String.format("Кабель '%s' деградировал: %s. Потери: %.1f%%, BER: %.6f", 
+                    specs.getNodeName(), cause, metric.getPacketLossPercent(), metric.getBitErrorRate()))
+                .severity(metric.getPacketLossPercent() > 80 ? "CRITICAL" : "WARNING")
+                .recommendation(recommendation)
+                .affectedElementType("CABLE")
+                .build());
+        }
+    }
+
+    private String generateCableRecommendation(ElementSpecs specs, CableMetricDto metric, String cause) {
+        List<String> recommendations = new ArrayList<>();
+        
+        if (cause.contains("отсутствует экранирование") || cause.contains("недостаточное экранирование")) {
+            recommendations.add("Замените кабель на экранированный (FTP/SFTP)");
+            recommendations.add("Проложите кабель в металлическом кабель-канале");
+        }
+        
+        if (cause.contains("превышение длины")) {
+            recommendations.add("Уменьшите длину кабеля или установите промежуточный коммутатор");
+            recommendations.add("Рассмотрите использование оптического кабеля для больших расстояний");
+        }
+        
+        if (cause.contains("высокое затухание")) {
+            recommendations.add("Используйте кабель с меньшим затуханием (например, с более толстой жилой)");
+            recommendations.add("Добавьте ретрансляторы или медиаконвертеры");
+        }
+        
+        if (metric.getBitErrorRate() > 0.01) {
+            recommendations.add("Проверьте качество соединений и контактов");
+            recommendations.add("Увеличьте расстояние до источников электромагнитных помех");
+        }
+        
+        if (cause.contains("перегрев")) {
+            recommendations.add("Увеличьте расстояние до источников тепла");
+            recommendations.add("Используйте кабель с более высоким температурным рейтингом");
+        }
+        
+        if (recommendations.isEmpty()) {
+            return "Проведите диагностику кабельной трассы и проверьте качество соединений";
+        }
+        
+        return String.join("; ", recommendations);
     }
     
     private String buildRecommendation(SimulationResultData resultData) {
@@ -1078,6 +1378,19 @@ public class SimulationService {
                 .grade(result.getGrade())
                 .score(result.getScore())
                 .createdAt(result.getCreatedAt().toString())
+                // ============ ДОБАВИТЬ НОВЫЕ ПОЛЯ ============
+                .economicImpact(result.getEconomicImpact() != null 
+                    ? objectMapper.readValue(result.getEconomicImpact(), EconomicImpact.class)
+                    : null)
+                .deviceDetails(result.getDeviceDetails() != null 
+                    ? objectMapper.readValue(result.getDeviceDetails(), new TypeReference<List<DeviceDetail>>() {})
+                    : null)
+                .cableDetails(result.getCableDetails() != null 
+                    ? objectMapper.readValue(result.getCableDetails(), new TypeReference<List<CableDetail>>() {})
+                    : null)
+                .factorContributions(result.getFactorContributions() != null 
+                    ? objectMapper.readValue(result.getFactorContributions(), new TypeReference<Map<String, FactorContribution>>() {})
+                    : null)
                 .build();
         } catch (Exception e) {
             log.error("Failed to build response DTO", e);
@@ -1101,6 +1414,8 @@ public class SimulationService {
     
     private SimulationResponseDto convertToDto(SimulationResult result) {
         try {
+            Summary summary = objectMapper.readValue(result.getSummary(), Summary.class);
+            
             return SimulationResponseDto.builder()
                 .id(result.getId())
                 .name(result.getName())
@@ -1114,11 +1429,24 @@ public class SimulationService {
                 .grade(result.getGrade())
                 .score(result.getScore())
                 .createdAt(result.getCreatedAt().toString())
-                .summary(objectMapper.readValue(result.getSummary(), Summary.class))
+                .summary(summary)
                 .timeline(objectMapper.readValue(result.getTimeline(),
-                    new com.fasterxml.jackson.core.type.TypeReference<List<TimelinePoint>>() {}))
+                    new TypeReference<List<TimelinePoint>>() {}))
                 .events(objectMapper.readValue(result.getEvents(),
-                    new com.fasterxml.jackson.core.type.TypeReference<List<CriticalEvent>>() {}))
+                    new TypeReference<List<CriticalEvent>>() {}))
+                // ============ ДОБАВИТЬ НОВЫЕ ПОЛЯ ============
+                .economicImpact(result.getEconomicImpact() != null 
+                    ? objectMapper.readValue(result.getEconomicImpact(), EconomicImpact.class)
+                    : null)
+                .deviceDetails(result.getDeviceDetails() != null 
+                    ? objectMapper.readValue(result.getDeviceDetails(), new TypeReference<List<DeviceDetail>>() {})
+                    : null)
+                .cableDetails(result.getCableDetails() != null 
+                    ? objectMapper.readValue(result.getCableDetails(), new TypeReference<List<CableDetail>>() {})
+                    : null)
+                .factorContributions(result.getFactorContributions() != null 
+                    ? objectMapper.readValue(result.getFactorContributions(), new TypeReference<Map<String, FactorContribution>>() {})
+                    : null)
                 .build();
         } catch (Exception e) {
             log.error("Failed to convert simulation result to DTO", e);

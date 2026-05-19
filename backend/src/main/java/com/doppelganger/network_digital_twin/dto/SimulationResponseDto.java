@@ -1,5 +1,6 @@
 package com.doppelganger.network_digital_twin.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -38,6 +39,7 @@ public class SimulationResponseDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Summary {
         private Double maxLatencyMs;
         private Double avgLatencyMs;
@@ -50,17 +52,18 @@ public class SimulationResponseDto {
         private String recommendation;
         
         // ============ НОВЫЕ ПОЛЯ ============
-        private Double totalReplacementCost;      // Общая стоимость замены
-        private Double totalRepairCost;           // Общая стоимость ремонта
-        private Double totalDowntimeSeconds;      // Общее время простоя
-        private String worstAffectedDevice;       // Наиболее пострадавшее устройство
-        private String worstAffectedCable;        // Наиболее пострадавший кабель
+        private Double totalReplacementCost;
+        private Double totalRepairCost;
+        private Double totalDowntimeSeconds;
+        private String worstAffectedDevice;
+        private String worstAffectedCable;
     }
     
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class TimelinePoint {
         private Integer timestamp;
         private Double avgLatencyMs;
@@ -79,6 +82,7 @@ public class SimulationResponseDto {
     @AllArgsConstructor
     @Builder
     @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class CriticalEvent {
         private Integer timestamp;
         private String type;
@@ -89,17 +93,18 @@ public class SimulationResponseDto {
         private String recommendation;
         
         // ============ НОВЫЕ ПОЛЯ ============
-        private String affectedElementType;  // DEVICE, CABLE
-        private String factorType;           // TEMPERATURE, EMI, VIBRATION, DUST
-        private Double factorValue;          // Значение фактора в момент события
-        private Double threshold;             // Порог, который был превышен
-        private Double estimatedCost;         // Оценочная стоимость ущерба
+        private String affectedElementType;
+        private String factorType;
+        private Double factorValue;
+        private Double threshold;
+        private Double estimatedCost;
     }
     
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class DeviceMetric {
         private Double latencyMs;
         private Double packetLossPercent;
@@ -121,6 +126,7 @@ public class SimulationResponseDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class CableMetric {
         private String cableId;
         private String cableName;
@@ -136,23 +142,25 @@ public class SimulationResponseDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class FactorValue {
         private String factorType;
         private Double currentValue;
         private Double warningThreshold;
         private Double criticalThreshold;
         private Double failureThreshold;
-        private String severity;  // NORMAL, WARNING, CRITICAL, FAILURE
+        private String severity;
     }
     
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class EconomicImpact {
         private Double totalReplacementCost;
         private Double totalRepairCost;
-        private Double estimatedDowntimeCost;  // Стоимость простоя
+        private Double estimatedDowntimeCost;
         private Double totalLoss;
         private Map<String, Double> deviceLosses;
         private Map<String, Double> cableLosses;
@@ -162,7 +170,10 @@ public class SimulationResponseDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class DeviceDetail {
+        private String id;
+        private String name;           // Добавлено для совместимости
         private String deviceId;
         private String deviceName;
         private String deviceType;
@@ -181,7 +192,10 @@ public class SimulationResponseDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class CableDetail {
+        private String id;
+        private String name;           // Добавлено для совместимости
         private String cableId;
         private String cableName;
         private String cableType;
@@ -196,6 +210,7 @@ public class SimulationResponseDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class FactorImpactDetail {
         private String factorId;
         private String factorName;
@@ -203,18 +218,19 @@ public class SimulationResponseDto {
         private Double factorValue;
         private Double distance;
         private Double effectiveValue;
-        private String thresholdLevel;  // NORMAL, WARNING, CRITICAL, FAILURE
+        private String thresholdLevel;
     }
     
     @Data
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class FactorContribution {
         private String factorId;
         private String factorName;
         private String factorType;
-        private Double contributionPercent;  // Процент влияния на общую деградацию
+        private Double contributionPercent;
         private Integer affectedElementsCount;
         private List<String> affectedElementIds;
     }
