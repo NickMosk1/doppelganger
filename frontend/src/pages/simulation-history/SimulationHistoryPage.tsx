@@ -40,7 +40,7 @@ const SimulationHistoryPage: React.FC = observer(() => {
     <Container>
       <Header>
         <BackButton onClick={() => navigate(`/editor/${id}`)}>← Назад к схеме</BackButton>
-        <Title>📊 История симуляций</Title>
+        <Title>История симуляций</Title>
       </Header>
 
       {history.length === 0 ? (

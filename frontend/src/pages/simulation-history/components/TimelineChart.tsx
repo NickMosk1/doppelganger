@@ -30,7 +30,6 @@ const TimelineChart: React.FC<TimelineChartProps> = ({ timeline }) => {
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="time" label={{ value: 'Время (сек)', position: 'bottom' }} />
             <YAxis yAxisId="left" label={{ value: 'Задержка (мс)', angle: -90, position: 'insideLeft' }} />
             <YAxis yAxisId="right" orientation="right" label={{ value: 'Потери (%)', angle: 90, position: 'insideRight' }} />
             <Tooltip />

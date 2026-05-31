@@ -201,7 +201,7 @@ export const NoSelectionMessage = styled.div`
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 60px 24px;
+  padding: 200px 24px;
   color: ${colors.textLighter};
   
   span {

@@ -22,6 +22,6 @@ public class SchemaSummaryDto {
     private String updatedAt;
     private Long devicesCount;
     private Long cablesCount;
-    private Long factorsCount;      // 🔧 ДОБАВИТЬ
+    private Long factorsCount;
     private Long connectionsCount;
 }

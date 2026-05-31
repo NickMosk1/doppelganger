@@ -355,6 +355,8 @@ const RightPanel: React.FC = observer(() => {
     isSwitchingRef.current = false;
   };
 
+  const title = getTitle();
+
   return (
     <RightPanelContainer style={{ width: `${width}px` }}>
       <ResizeHandle onMouseDown={startResize} />
@@ -365,9 +367,9 @@ const RightPanel: React.FC = observer(() => {
         </Tab>
       </Tabs>
 
-      {activeTab === "properties" && (
+      {title !== "Свойства" && activeTab === "properties" && (
         <PanelHeader>
-          <PanelTitle>{getTitle()}</PanelTitle>
+          <PanelTitle>{title}</PanelTitle>
           {hasSelection && (
             <ButtonGroup>
               {(selectedNode || selectedEdge?.connectionType === ConnectionType.FACTOR_ELEMENT) && (

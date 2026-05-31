@@ -1,9 +1,9 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
-import Injector from './injector';
-import { AuthStore } from '../stores';
-import { AUTH_STORE } from '../stores/identifiers';
 
-const API_BASE_URL = 'http://localhost:8080/api';
+// По умолчанию 8081 (для Docker), можно переопределить через .env
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081/api';
+
+console.log(`[API Client] Using API endpoint: ${API_BASE_URL}`);
 
 class ApiClient {
   private client: AxiosInstance;
@@ -15,11 +15,18 @@ class ApiClient {
     });
 
     this.client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-      const authStore = Injector.get<AuthStore>(AUTH_STORE);
-      const token = authStore.accessToken;
-
+      const token = localStorage.getItem('access_token');
+      
+      // ДОБАВЬТЕ ЭТО ЛОГИРОВАНИЕ
+      console.log('[API Interceptor] URL:', config.url);
+      console.log('[API Interceptor] Token exists:', !!token);
+      console.log('[API Interceptor] Token value:', token ? token.substring(0, 30) + '...' : 'null');
+      
       if (token && config.headers) {
         config.headers.Authorization = `Bearer ${token}`;
+        console.log('[API Interceptor] Authorization header SET');
+      } else {
+        console.log('[API Interceptor] Authorization header NOT SET');
       }
       return config;
     });
@@ -28,8 +35,10 @@ class ApiClient {
       (response) => response,
       (error) => {
         if (error.response?.status === 401) {
-          const authStore = Injector.get<AuthStore>(AUTH_STORE);
-          authStore.logout();
+          // Очищаем localStorage при 401
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          localStorage.removeItem('user');
           window.location.href = '/login';
         }
         return Promise.reject(error);
