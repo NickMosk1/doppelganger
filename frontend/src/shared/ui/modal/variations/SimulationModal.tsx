@@ -247,7 +247,7 @@ const SimulationModal: React.FC<SimulationModalProps> = ({ isOpen, onClose, onSu
         />
       </FormGroup>
 
-      <SectionTitle>📡 Маршрут передачи данных</SectionTitle>
+      <SectionTitle>Маршрут передачи данных</SectionTitle>
       <PathContainer>
         <PathTitle>
           {isPathValid ? 'Маршрут найден' : 'Маршрут не найден'}

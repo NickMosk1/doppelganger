@@ -36,7 +36,7 @@ const CardIcon = styled.span`
 `;
 
 const CardText = styled.span<{ $severity: 'critical' | 'warning' | 'info' }>`
-  font-size: 13px;
+  font-size: 16px;
   color: ${props => 
     props.$severity === 'critical' ? '#b91c1c' :
     props.$severity === 'warning' ? '#c2410c' : '#2e7d32'

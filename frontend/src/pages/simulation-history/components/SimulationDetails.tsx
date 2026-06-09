@@ -98,7 +98,7 @@ const SimulationDetails: React.FC<SimulationDetailsProps> = ({ simulation, isLoa
           {/* Узкие места */}
           {simulation.summary?.bottlenecks && simulation.summary.bottlenecks.length > 0 && (
             <DetailSection>
-              <DetailTitle>🚦 Узкие места сети</DetailTitle>
+              <DetailTitle>Узкие места сети</DetailTitle>
               {simulation.summary.bottlenecks.map((bottleneck, idx) => (
                 <div key={idx} style={{ padding: '8px 0', borderBottom: '1px solid #e2e8f0' }}>
                   <span style={{ color: '#e54848' }}>⚠️</span> {bottleneck}
@@ -109,7 +109,7 @@ const SimulationDetails: React.FC<SimulationDetailsProps> = ({ simulation, isLoa
 
           {/* Маршрут */}
           <DetailSection>
-            <DetailTitle>🗺️ Маршрут передачи данных</DetailTitle>
+            <DetailTitle>Маршрут передачи данных</DetailTitle>
             <PathContainer>
               <PathNode isStart>🚀 {simulation.startNodeName || 'Старт'}</PathNode>
               <PathArrow>→</PathArrow>
@@ -119,7 +119,7 @@ const SimulationDetails: React.FC<SimulationDetailsProps> = ({ simulation, isLoa
 
           {/* Общая оценка */}
           <DetailSection>
-            <DetailTitle>🏆 Итоговая оценка</DetailTitle>
+            <DetailTitle>Итоговая оценка</DetailTitle>
             <div style={{ 
               display: 'flex', 
               alignItems: 'center', 
